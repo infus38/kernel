@@ -10,7 +10,6 @@
  */
 
 #include <linux/devfreq.h>
-#include <linux/module.h>
 #include "governor.h"
 
 static int devfreq_performance_func(struct devfreq *df,
@@ -57,6 +56,7 @@ static int devfreq_performance_handler(struct devfreq *devfreq,
 
 static struct devfreq_governor devfreq_performance = {
 	.name = "performance",
+	.init = performance_init,
 	.get_target_freq = devfreq_performance_func,
 	.event_handler = devfreq_performance_handler,
 };

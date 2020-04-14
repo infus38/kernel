@@ -60,6 +60,12 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	vfree(pages);
 
+<<<<<<< HEAD
+=======
+	if (vaddr == NULL)
+		return ERR_PTR(-ENOMEM);
+
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 	return vaddr;
 }
 
@@ -101,6 +107,7 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 	return 0;
 }
 
+<<<<<<< HEAD
 #define MAX_VMAP_RETRIES 10
 
 /**
@@ -212,12 +219,30 @@ int ion_heap_buffer_zero(struct ion_buffer *buffer)
 	pages_mem.size = PAGE_ALIGN(buffer->size);
 
 	if (ion_heap_alloc_pages_mem(&pages_mem))
+=======
+int ion_heap_buffer_zero(struct ion_buffer *buffer)
+{
+	struct sg_table *table = buffer->sg_table;
+	pgprot_t pgprot;
+	struct scatterlist *sg;
+	struct vm_struct *vm_struct;
+	int i, j, ret = 0;
+
+	if (buffer->flags & ION_FLAG_CACHED)
+		pgprot = PAGE_KERNEL;
+	else
+		pgprot = pgprot_writecombine(PAGE_KERNEL);
+
+	vm_struct = get_vm_area(PAGE_SIZE, VM_ALLOC);
+	if (!vm_struct)
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 		return -ENOMEM;
 
 	for_each_sg(table->sgl, sg, table->nents, i) {
 		struct page *page = sg_page(sg);
 		unsigned long len = sg_dma_len(sg);
 
+<<<<<<< HEAD
 		for (j = 0; j < len / PAGE_SIZE; j++)
 			pages_mem.pages[npages++] = page + j;
 	}
@@ -231,6 +256,40 @@ int ion_heap_buffer_zero(struct ion_buffer *buffer)
 
 void ion_heap_free_page(struct ion_buffer *buffer, struct page *page,
 		       unsigned int order)
+=======
+		for (j = 0; j < len / PAGE_SIZE; j++) {
+			struct page *sub_page = page + j;
+			struct page **pages = &sub_page;
+			ret = map_vm_area(vm_struct, pgprot, &pages);
+			if (ret)
+				goto end;
+			memset(vm_struct->addr, 0, PAGE_SIZE);
+			unmap_kernel_range((unsigned long)vm_struct->addr,
+					   PAGE_SIZE);
+		}
+	}
+end:
+	free_vm_area(vm_struct);
+	return ret;
+}
+
+struct page *ion_heap_alloc_pages(struct ion_buffer *buffer, gfp_t gfp_flags,
+				  unsigned int order)
+{
+	struct page *page = alloc_pages(gfp_flags, order);
+
+	if (!page)
+		return page;
+
+	if (ion_buffer_fault_user_mappings(buffer))
+		split_page(page, order);
+
+	return page;
+}
+
+void ion_heap_free_pages(struct ion_buffer *buffer, struct page *page,
+			 unsigned int order)
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 {
 	int i;
 
@@ -262,8 +321,12 @@ size_t ion_heap_freelist_size(struct ion_heap *heap)
 	return size;
 }
 
+<<<<<<< HEAD
 static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
 				bool skip_pools)
+=======
+size_t ion_heap_freelist_drain(struct ion_heap *heap, size_t size)
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 {
 	struct ion_buffer *buffer, *tmp;
 	size_t total_drained = 0;
@@ -279,17 +342,24 @@ static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
 		if (total_drained >= size)
 			break;
 		list_del(&buffer->list);
+<<<<<<< HEAD
 		heap->free_list_size -= buffer->size;
 		if (skip_pools)
 			buffer->flags |= ION_FLAG_FREED_FROM_SHRINKER;
 		total_drained += buffer->size;
 		ion_buffer_destroy(buffer);
+=======
+		ion_buffer_destroy(buffer);
+		heap->free_list_size -= buffer->size;
+		total_drained += buffer->size;
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 	}
 	rt_mutex_unlock(&heap->lock);
 
 	return total_drained;
 }
 
+<<<<<<< HEAD
 size_t ion_heap_freelist_drain(struct ion_heap *heap, size_t size)
 {
 	return _ion_heap_freelist_drain(heap, size, false);
@@ -300,6 +370,8 @@ size_t ion_heap_freelist_drain_from_shrinker(struct ion_heap *heap, size_t size)
 	return _ion_heap_freelist_drain(heap, size, true);
 }
 
+=======
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 int ion_heap_deferred_free(void *data)
 {
 	struct ion_heap *heap = data;
@@ -362,6 +434,12 @@ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
 	case ION_HEAP_TYPE_CHUNK:
 		heap = ion_chunk_heap_create(heap_data);
 		break;
+<<<<<<< HEAD
+=======
+	case ION_HEAP_TYPE_DMA:
+		heap = ion_cma_heap_create(heap_data);
+		break;
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 	default:
 		pr_err("%s: Invalid heap type %d\n", __func__,
 		       heap_data->type);
@@ -399,6 +477,12 @@ void ion_heap_destroy(struct ion_heap *heap)
 	case ION_HEAP_TYPE_CHUNK:
 		ion_chunk_heap_destroy(heap);
 		break;
+<<<<<<< HEAD
+=======
+	case ION_HEAP_TYPE_DMA:
+		ion_cma_heap_destroy(heap);
+		break;
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 	default:
 		pr_err("%s: Invalid heap type %d\n", __func__,
 		       heap->type);

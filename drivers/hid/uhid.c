@@ -272,7 +272,10 @@ static struct hid_ll_driver uhid_hid_driver = {
 	.stop = uhid_hid_stop,
 	.open = uhid_hid_open,
 	.close = uhid_hid_close,
+<<<<<<< HEAD
 	.hidinput_input_event = uhid_hid_input,
+=======
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 	.parse = uhid_hid_parse,
 };
 

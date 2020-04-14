@@ -1039,6 +1039,7 @@ static void l2cap_le_conn_ready(struct l2cap_conn *conn)
 	write_lock_bh(&list->lock);
 
 	hci_conn_hold(conn->hcon);
+	conn->hcon->disc_timeout = HCI_DISCONN_TIMEOUT;
 
 	l2cap_sock_init(sk, parent);
 	bacpy(&bt_sk(sk)->src, conn->src);
@@ -1060,15 +1061,21 @@ clean:
 
 static void l2cap_conn_ready(struct l2cap_conn *conn)
 {
+<<<<<<< HEAD
 	struct l2cap_chan_list *l = &conn->chan_list;
 	struct sock *sk;
+=======
+	struct l2cap_chan *chan;
+	struct hci_conn *hcon = conn->hcon;
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 
 	BT_DBG("conn %p", conn);
 
-	if (!conn->hcon->out && conn->hcon->type == LE_LINK)
+	if (!hcon->out && hcon->type == LE_LINK)
 		l2cap_le_conn_ready(conn);
 
-	read_lock(&l->lock);
+	if (hcon->out && hcon->type == LE_LINK)
+		smp_conn_security(hcon, hcon->pending_sec_level);
 
 	if (l->head) {
 		for (sk = l->head; sk; sk = l2cap_pi(sk)->next_c) {
@@ -1081,8 +1088,9 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 				if (pending_sec > sec_level)
 					sec_level = pending_sec;
 
-				if (smp_conn_security(conn, sec_level))
-					l2cap_chan_ready(sk);
+		if (hcon->type == LE_LINK) {
+			if (smp_conn_security(hcon, chan->sec_level))
+				l2cap_chan_ready(chan);
 
 				hci_conn_put(conn->hcon);
 
@@ -1965,6 +1973,11 @@ static void l2cap_ertm_send_sframe(struct sock *sk,
 		pi->conn_state &= ~L2CAP_CONN_SENT_RNR;
 	else if (control->super == L2CAP_SFRAME_RNR)
 		pi->conn_state |= L2CAP_CONN_SENT_RNR;
+	if (conn->mtu < L2CAP_HDR_SIZE + L2CAP_CMD_HDR_SIZE)
+		return NULL;
+
+	len = L2CAP_HDR_SIZE + L2CAP_CMD_HDR_SIZE + dlen;
+	count = min_t(unsigned int, conn->mtu, len);
 
 	if (control->super != L2CAP_SFRAME_SREJ) {
 		pi->last_acked_seq = control->reqseq;
@@ -4558,6 +4571,13 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		sk->sk_err = ECONNRESET;
 		l2cap_sock_set_timer(sk, HZ * 5);
 		l2cap_send_disconn_req(conn, sk, ECONNRESET);
+		if (type != L2CAP_CONF_RFC)
+			continue;
+
+		if (olen != sizeof(rfc))
+			break;
+
+		memcpy(&rfc, (void *)val, olen);
 		goto done;
 	}
 

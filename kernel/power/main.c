@@ -601,12 +601,16 @@ power_attr(pm_trace_dev_match);
 
 #endif /* CONFIG_PM_TRACE */
 
+<<<<<<< HEAD
 #ifdef CONFIG_USER_WAKELOCK
 power_attr(wake_lock);
 power_attr(wake_unlock);
 #endif
 
 static struct attribute *g[] = {
+=======
+static struct attribute * g[] = {
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 	&state_attr.attr,
 #ifdef CONFIG_PM_TRACE
 	&pm_trace_attr.attr,
@@ -617,6 +621,7 @@ static struct attribute *g[] = {
 	&wakeup_count_attr.attr,
 #ifdef CONFIG_PM_AUTOSLEEP
 	&autosleep_attr.attr,
+<<<<<<< HEAD
 #endif
 #ifdef CONFIG_PM_WAKELOCKS
 	&wake_lock_attr.attr,
@@ -626,10 +631,15 @@ static struct attribute *g[] = {
 	&touch_event_timer_attr.attr,
 #ifdef CONFIG_PM_DEBUG
 	&pm_test_attr.attr,
+=======
+>>>>>>> 40bb591cb6abaf540bf9a988e3fac0ca86368865
 #endif
-#ifdef CONFIG_USER_WAKELOCK
+#ifdef CONFIG_PM_WAKELOCKS
 	&wake_lock_attr.attr,
 	&wake_unlock_attr.attr,
+#endif
+#ifdef CONFIG_PM_DEBUG
+	&pm_test_attr.attr,
 #endif
 #endif
 	NULL,
