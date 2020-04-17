@@ -16,9 +16,6 @@
 		qcom,mdss-dsi-panel-name = "truly hx8379c fwvga video mode dsi panel";
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
 		qcom,mdss-dsi-panel-type = "dsi_video_mode";
-		somc,driver-ic = <0>;
-		somc,panel-id = [FF];
-		somc,dric-gpio = <&msmgpio 27 0>;
 		qcom,rst-gpio = <&msmgpio 25 0>;
 		qcom,mdss-dsi-panel-width = <480>;
 		qcom,mdss-dsi-panel-height = <854>;
@@ -59,10 +56,7 @@
 		qcom,mdss-dsi-mdp-trigger = <0x0>;
 		qcom,mdss-dsi-dma-trigger = <0x04>;
 		qcom,mdss-dsi-panel-framerate = <60>;
-		qcom,platform-reset-gpio = <&msmgpio 25 0>;
-		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 120>;
-		somc,lcm-bl-gpio = <&msmgpio 15 0>;
-		qcom,panel-phy-regulatorSettings = [03 0a 04 00 20 00 01]; /* Regulator settings */
+		qcom,panel-phy-regulatorSettings = [03 0a 04 00 20 00 01]; /* Regualotor settings */
 		qcom,mdss-dsi-panel-timings = [75 18 10 00 3A 3E 14 1A 13 03 04 00];
 
 		qcom,panel-phy-strengthCtrl = [ff 06];
@@ -116,7 +110,7 @@
 
 		qcom,mdss-dsi-on-command-state = "DSI_LP_MODE";
 		qcom,mdss-dsi-off-command = [
-			05 01 00 00 00 00 01 10
+			05 01 00 00 00 00 01 10        
 			];
 		qcom,mdss-dsi-off-command-state = "DSI_LP_MODE";
 		qcom,mdss-dsi-lp11-init = <1>;
@@ -127,9 +121,6 @@
 		qcom,mdss-dsi-panel-name = "O-film hx8379c fwvga video mode dsi panel";
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
 		qcom,mdss-dsi-panel-type = "dsi_video_mode";
-		somc,driver-ic = <1>;
-		somc,panel-id = [FF];
-		somc,dric-gpio = <&msmgpio 27 0>;
 		qcom,rst-gpio = <&msmgpio 25 0>;
 		qcom,mdss-dsi-panel-width = <480>;
 		qcom,mdss-dsi-panel-height = <854>;
@@ -170,10 +161,7 @@
 		qcom,mdss-dsi-mdp-trigger = <0x0>;
 		qcom,mdss-dsi-dma-trigger = <0x04>;
 		qcom,mdss-dsi-panel-framerate = <60>;
-		qcom,platform-reset-gpio = <&msmgpio 25 0>;
-		qcom,mdss-dsi-reset-sequence = <1 10>, <0 10>, <1 120>;
-		somc,lcm-bl-gpio = <&msmgpio 15 0>;
-		qcom,panel-phy-regulatorSettings = [03 0a 04 00 20 00 01]; /* Regulator settings */
+		qcom,panel-phy-regulatorSettings = [03 0a 04 00 20 00 01]; /* Regualotor settings */
 		qcom,mdss-dsi-panel-timings = [75 18 10 00 3A 3E 14 1A 13 03 04 00];
 
 		qcom,panel-phy-strengthCtrl = [ff 06];
@@ -202,8 +190,8 @@
 
 					39 01 00 00 00 00 1E
 						D3 00 07 00 00 01 0a 0a 32 10
-						1C 00 05 03 80 03 69 00 1F 00
-						08 37 33 1E 07 37 1E 07 37 08
+ 				                1C 00 05 03 80 03 69 00 1F 00
+ 					        08 37 33 1E 07 37 1E 07 37 08
 
 					39 01 00 00 00 00 21
 						D5 18 18 18 18 18 18 18
@@ -220,10 +208,10 @@
 
 					39 01 00 00 00 00 2B
 						E0 00 03 08 30 38 3f 14 33 07
-						0b 0c 17 0e 11 13 11 13 07 10
-						11 16 00 03 08 30 38 3f 14 33
-						07 0b 0c 17 0e 11 13 11 13 07
-						10 11 16
+				    	        0b 0c 17 0e 11 13 11 13 07 10
+				                11 16 00 03 08 30 38 3f 14 33
+			   	   	        07 0b 0c 17 0e 11 13 11 13 07
+  	  		  	 	   	10 11 16
 
 					39 01 00 00 00 00 03
 						B6 80 80
@@ -234,7 +222,7 @@
 
 		qcom,mdss-dsi-on-command-state = "DSI_LP_MODE";
 		qcom,mdss-dsi-off-command = [
-			05 01 00 00 00 00 01 10
+			05 01 00 00 00 00 01 10        
 			];
 		qcom,mdss-dsi-off-command-state = "DSI_LP_MODE";
 		qcom,mdss-dsi-lp11-init = <1>;

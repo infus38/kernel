@@ -16,9 +16,9 @@
  * VERSION = "1.0"
  *---------------------------------------------------------------------------*/
 &mdss_mdp {
-	dsi_nt35521_720_vid_jdi00: qcom,mdss_dsi_nt35521_720p_video_jdi00 {
+	dsi_nt35521_720_vid_jdi: qcom,mdss_dsi_nt35521_720p_video_jdi {
 		compatible = "qcom,mdss-dsi-panel-jdi";
-		qcom,mdss-dsi-panel-name = "nt35521 720p video mode dsi non panel jdi";
+		qcom,mdss-dsi-panel-name = "nt35521 720p video mode dsi panel jdi";
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
 		qcom,mdss-dsi-panel-type = "dsi_video_mode";
 		qcom,mdss-dsi-panel-destination = "display_1";
@@ -29,14 +29,24 @@
 		qcom,mdss-pan-physical-height-dimension = <116>;
 		qcom,mdss-dsi-panel-width = <720>;
 		qcom,mdss-dsi-panel-height = <1280>;
-		qcom,mdss-dsi-h-front-porch = <114>;
-		qcom,mdss-dsi-h-back-porch = <50>;
-		qcom,mdss-dsi-h-pulse-width = <10>;
+		qcom,mdss-dsi-h-front-porch = <632>; //800Mbps
+		qcom,mdss-dsi-h-back-porch = <295>; //800Mbps
+		qcom,mdss-dsi-h-pulse-width = <40>; //800Mbps
+//		qcom,mdss-dsi-h-front-porch = <114>; //420Mbps
+//		qcom,mdss-dsi-h-back-porch = <50>; //420Mbps
+//		qcom,mdss-dsi-h-pulse-width = <10>; //420Mbps
 		qcom,mdss-dsi-h-sync-skew = <0>;
-		qcom,mdss-dsi-v-back-porch = <10>;
-		qcom,mdss-dsi-v-front-porch = <13>;
+		qcom,mdss-dsi-v-back-porch = <18>;
+		qcom,mdss-dsi-v-front-porch = <18>;
 		qcom,mdss-dsi-v-pulse-width = <1>;
-		qcom,mdss-dsi-h-left-border = <0>;
+
+		qcom,mdss-dsi-h-front-porch-lte = <232>; //514Mbps
+		qcom,mdss-dsi-h-back-porch-lte = <112>; //514Mbps
+		qcom,mdss-dsi-h-pulse-width-lte = <20>; //514Mbps
+		qcom,mdss-dsi-v-back-porch-lte = <18>;
+		qcom,mdss-dsi-v-front-porch-lte = <18>;
+		qcom,mdss-dsi-v-pulse-width-lte = <1>;
+
 		qcom,mdss-dsi-h-right-border = <0>;
 		qcom,mdss-dsi-v-top-border = <0>;
 		qcom,mdss-dsi-v-bottom-border = <0>;
@@ -45,7 +55,7 @@
 		qcom,mdss-dsi-underflow-color = <0xff>;
 		qcom,mdss-dsi-border-color = <0>;
 		qcom,mdss-dsi-pixel-packing = <0>;
-		qcom,mdss-dsi-on-command = [
+		qcom,mdss-dsi-on-command-0 = [
 				29 01 00 00 00 00 06 F0 55 AA 52 08 00
 				23 01 00 00 00 00 02 B6 14
 				29 01 00 00 00 00 05 B8 00 00 14 0A
@@ -206,71 +216,7 @@
 				05 01 00 00 01 00 02 29 00
 				29 01 00 00 00 00 02 53 24
 		];
-		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
-					05 01 00 00 96 00 02 10 00];
-		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
-		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
-		qcom,mdss-dsi-h-sync-pulse = <1>;
-		qcom,mdss-dsi-traffic-mode = <2>;
-		qcom,mdss-dsi-lane-map = <0>;
-		qcom,mdss-dsi-bllp-eof-power-mode;
-		qcom,mdss-dsi-bllp-power-mode;
-		qcom,mdss-dsi-lane-0-state;
-		qcom,mdss-dsi-lane-1-state;
-		qcom,mdss-dsi-lane-2-state;
-		qcom,mdss-dsi-lane-3-state;
-		qcom,mdss-dsi-panel-timings = [93 1F 17 00 2F 2E 1C 21 26 03 04 00];
-		qcom,mdss-dsi-t-clk-post = <0x20>;
-		qcom,mdss-dsi-t-clk-pre = <0x2D>;
-		qcom,mdss-dsi-bl-min-level = <1>;
-		qcom,mdss-dsi-bl-max-level = <255>;
-		qcom,mdss-dsi-dma-trigger = <4>;
-		qcom,mdss-dsi-mdp-trigger = <0>;
-		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,platform-reset-gpio = <&msmgpio 25 0>;
-		qcom,mdss-dsi-reset-sequence = <1 150>;
-		somc,panel-id = [00];
-		somc,pwr-positive5-gpio = <&msmgpio 2 0>;
-		somc,pwr-negative5-gpio = <&msmgpio 3 0>;
-		somc,driver-ic = <4>;
-		somc,panel-detect = <1>;
-		somc,panel-id-read-cmds;
-		somc,alt-panelid-cmd;
-		somc,dsi-restart-hack;
-		somc,no-vsn-gpio;
-		somc,no-vsp-gpio;
-	};
-
-	dsi_nt35521_720_vid_jdi61: qcom,mdss_dsi_nt35521_720p_video_jdi61 {
-		compatible = "qcom,mdss-dsi-panel-jdi";
-		qcom,mdss-dsi-panel-name = "nt35521 720p video mode dsi panel jdi";
-		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
-		qcom,mdss-dsi-panel-type = "dsi_video_mode";
-		qcom,mdss-dsi-panel-destination = "display_1";
-		qcom,mdss-dsi-panel-framerate = <60>;
-		qcom,mdss-dsi-virtual-channel-id = <0>;
-		qcom,mdss-dsi-stream = <0>;
-		qcom,mdss-pan-physical-width-dimension = <65>;
-		qcom,mdss-pan-physical-height-dimension = <116>;
-		qcom,mdss-dsi-panel-width = <720>;
-		qcom,mdss-dsi-panel-height = <1280>;
-		qcom,mdss-dsi-h-front-porch = <114>;
-		qcom,mdss-dsi-h-back-porch = <50>;
-		qcom,mdss-dsi-h-pulse-width = <10>;
-		qcom,mdss-dsi-h-sync-skew = <0>;
-		qcom,mdss-dsi-v-back-porch = <10>;
-		qcom,mdss-dsi-v-front-porch = <13>;
-		qcom,mdss-dsi-v-pulse-width = <1>;
-		qcom,mdss-dsi-h-left-border = <0>;
-		qcom,mdss-dsi-h-right-border = <0>;
-		qcom,mdss-dsi-v-top-border = <0>;
-		qcom,mdss-dsi-v-bottom-border = <0>;
-		qcom,mdss-dsi-bpp = <24>;
-		qcom,mdss-dsi-color-order = <0>;
-		qcom,mdss-dsi-underflow-color = <0xff>;
-		qcom,mdss-dsi-border-color = <0>;
-		qcom,mdss-dsi-pixel-packing = <0>;
-		qcom,mdss-dsi-on-command = [
+		qcom,mdss-dsi-on-command-61 = [
 
 				//Modify backlight leds's freq to 65.1kHz
 				29 01 00 00 00 00 06 F0 55 AA 52 08 00
@@ -300,7 +246,10 @@
 		qcom,mdss-dsi-lane-1-state;
 		qcom,mdss-dsi-lane-2-state;
 		qcom,mdss-dsi-lane-3-state;
-		qcom,mdss-dsi-panel-timings = [93 1F 17 00 2F 2E 1C 21 26 03 04 00];
+//		qcom,mdss-dsi-panel-timings = [93 1F 17 00 2F 2E 1C 21 26 03 04 00]; //420Mbps
+		qcom,mdss-dsi-panel-timings =[D5 32 22 00 60 64 26 34 29 03 04 00];//800Mbsp
+		qcom,mdss-dsi-panel-timings-lte =[94 20 14 00 46 4A 1A 24 18 03 04 00];//514Mbsp
+
 		qcom,mdss-dsi-t-clk-post = <0x20>;
 		qcom,mdss-dsi-t-clk-pre = <0x2D>;
 		qcom,mdss-dsi-bl-min-level = <1>;
@@ -308,21 +257,11 @@
 		qcom,mdss-dsi-dma-trigger = <4>;
 		qcom,mdss-dsi-mdp-trigger = <0>;
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,platform-reset-gpio = <&msmgpio 25 0>;
-		qcom,mdss-dsi-reset-sequence = <1 150>;
-		somc,panel-id = [61];
-		somc,pwr-positive5-gpio = <&msmgpio 2 0>;
-		somc,pwr-negative5-gpio = <&msmgpio 3 0>;
-		somc,driver-ic = <4>;
-		somc,panel-detect = <1>;
-		somc,panel-id-read-cmds;
-		somc,alt-panelid-cmd;
-		somc,dsi-restart-hack;
-		somc,no-vsn-gpio;
-		somc,no-vsp-gpio;
-	};
+		qcom,mdss-dsi-reset-sequence = <1 1>, <0 10>, <1 150>;
 
-	dsi_nt35521_720_vid_truly63: qcom,mdss_dsi_nt35521_720p_video_truly63 {
+	};
+    
+	dsi_nt35521_720_vid_truly: qcom,mdss_dsi_nt35521_720p_video_truly {
 		compatible = "qcom,mdss-dsi-panel-truly";
 		qcom,mdss-dsi-panel-name = "nt35521 720p video mode dsi panel truly";
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
@@ -335,14 +274,23 @@
 		qcom,mdss-pan-physical-height-dimension = <116>;
 		qcom,mdss-dsi-panel-width = <720>;
 		qcom,mdss-dsi-panel-height = <1280>;
-
-		qcom,mdss-dsi-h-front-porch = <232>; //514Mbps
-		qcom,mdss-dsi-h-back-porch = <112>; //514Mbps
-		qcom,mdss-dsi-h-pulse-width = <20>; //514Mbps
+		qcom,mdss-dsi-h-front-porch = <632>; //800Mbps
+		qcom,mdss-dsi-h-back-porch = <295>; //800Mbps
+		qcom,mdss-dsi-h-pulse-width = <40>; //800Mbps
+//		qcom,mdss-dsi-h-front-porch = <114>; //420Mbps
+//		qcom,mdss-dsi-h-back-porch = <50>; //420Mbps
+//		qcom,mdss-dsi-h-pulse-width = <10>; //420Mbps
 		qcom,mdss-dsi-h-sync-skew = <0>;
 		qcom,mdss-dsi-v-back-porch = <18>;
 		qcom,mdss-dsi-v-front-porch = <18>;
 		qcom,mdss-dsi-v-pulse-width = <1>;
+
+		qcom,mdss-dsi-h-front-porch-lte = <232>; //514Mbps
+		qcom,mdss-dsi-h-back-porch-lte = <112>; //514Mbps
+		qcom,mdss-dsi-h-pulse-width-lte = <20>; //514Mbps
+		qcom,mdss-dsi-v-back-porch-lte = <18>;
+		qcom,mdss-dsi-v-front-porch-lte = <18>;
+		qcom,mdss-dsi-v-pulse-width-lte = <1>;
 
 		qcom,mdss-dsi-h-left-border = <0>;
 		qcom,mdss-dsi-h-right-border = <0>;
@@ -352,7 +300,7 @@
 		qcom,mdss-dsi-underflow-color = <0xff>;
 		qcom,mdss-dsi-border-color = <0>;
 		qcom,mdss-dsi-pixel-packing = "tight";
-		qcom,mdss-dsi-on-command = [
+		qcom,mdss-dsi-on-command-63 = [
                         29 01 00 00 00 00 06 F0 55 AA 52 08 00
                         29 01 00 00 00 00 05 FF AA 55 A5 80
                         29 01 00 00 00 00 03 6F 11 00
@@ -565,71 +513,7 @@
                         29 01 00 00 00 00 02 53 24
 
 		];
-		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
-					05 01 00 00 96 00 02 10 00];
-		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
-		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
-		qcom,mdss-dsi-h-sync-pulse = <1>;
-		qcom,mdss-dsi-traffic-mode = "burst_mode";
-		qcom,mdss-dsi-bllp-eof-power-mode;
-		qcom,mdss-dsi-bllp-power-mode;
-		qcom,mdss-dsi-lane-0-state;
-		qcom,mdss-dsi-lane-1-state;
-		qcom,mdss-dsi-lane-2-state;
-		qcom,mdss-dsi-lane-3-state;
-		qcom,mdss-dsi-panel-timings = [94 20 14 00 46 4A 1A 24 18 03 04 00]; //514Mbps
-		qcom,mdss-dsi-t-clk-post = <0x20>;
-		qcom,mdss-dsi-t-clk-pre = <0x2D>;
-		qcom,mdss-dsi-bl-min-level = <1>;
-		qcom,mdss-dsi-bl-max-level = <255>;
-		qcom,mdss-dsi-dma-trigger = "trigger_sw";
-		qcom,mdss-dsi-mdp-trigger = "none";
-		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,platform-reset-gpio = <&msmgpio 25 0>;
-		qcom,mdss-dsi-reset-sequence = <1 150>;
-		somc,panel-id = [63];
-		somc,pwr-positive5-gpio = <&msmgpio 2 0>;
-		somc,pwr-negative5-gpio = <&msmgpio 3 0>;
-		somc,driver-ic = <4>;
-		somc,panel-detect = <1>;
-		somc,panel-id-read-cmds;
-		somc,alt-panelid-cmd;
-		somc,dsi-restart-hack;
-		somc,no-vsn-gpio;
-		somc,no-vsp-gpio;
-	};
-
-	dsi_nt35521_720_vid_truly64: qcom,mdss_dsi_nt35521_720p_video_truly64 {
-		compatible = "qcom,mdss-dsi-panel-truly";
-		qcom,mdss-dsi-panel-name = "nt35521 720p video mode dsi otp panel truly";
-		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
-		qcom,mdss-dsi-panel-type = "dsi_video_mode";
-		qcom,mdss-dsi-panel-destination = "display_1";
-		qcom,mdss-dsi-panel-framerate = <60>;
-		qcom,mdss-dsi-virtual-channel-id = <0>;
-		qcom,mdss-dsi-stream = <0>;
-		qcom,mdss-pan-physical-width-dimension = <65>;
-		qcom,mdss-pan-physical-height-dimension = <116>;
-		qcom,mdss-dsi-panel-width = <720>;
-		qcom,mdss-dsi-panel-height = <1280>;
-
-		qcom,mdss-dsi-h-front-porch = <232>; //514Mbps
-		qcom,mdss-dsi-h-back-porch = <112>; //514Mbps
-		qcom,mdss-dsi-h-pulse-width = <20>; //514Mbps
-		qcom,mdss-dsi-h-sync-skew = <0>;
-		qcom,mdss-dsi-v-back-porch = <18>;
-		qcom,mdss-dsi-v-front-porch = <18>;
-		qcom,mdss-dsi-v-pulse-width = <1>;
-
-		qcom,mdss-dsi-h-left-border = <0>;
-		qcom,mdss-dsi-h-right-border = <0>;
-		qcom,mdss-dsi-v-top-border = <0>;
-		qcom,mdss-dsi-v-bottom-border = <0>;
-		qcom,mdss-dsi-bpp = <24>;
-		qcom,mdss-dsi-underflow-color = <0xff>;
-		qcom,mdss-dsi-border-color = <0>;
-		qcom,mdss-dsi-pixel-packing = "tight";
-		qcom,mdss-dsi-on-command = [
+		qcom,mdss-dsi-on-command-64 = [
 
 				//Modify backlight leds's freq to 65.1kHz
 				29 01 00 00 00 00 06 F0 55 AA 52 08 00
@@ -646,6 +530,7 @@
 				05 01 00 00 01 00 02 29 00
 				29 01 00 00 00 00 02 53 24
 		];
+
 		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
 					05 01 00 00 96 00 02 10 00];
 		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
@@ -658,7 +543,10 @@
 		qcom,mdss-dsi-lane-1-state;
 		qcom,mdss-dsi-lane-2-state;
 		qcom,mdss-dsi-lane-3-state;
-		qcom,mdss-dsi-panel-timings = [94 20 14 00 46 4A 1A 24 18 03 04 00]; //514Mbsp
+//		qcom,mdss-dsi-panel-timings = [93 1F 17 00 2F 2E 1C 21 26 03 04 00]; //420Mbps
+		qcom,mdss-dsi-panel-timings =[D5 32 22 00 60 64 26 34 29 03 04 00];//800Mbsp
+//		qcom,mdss-dsi-panel-timings-lte =[94 20 14 00 46 4A 1A 24 18 03 04 00];//514Mbsp
+		qcom,mdss-dsi-panel-timings-lte =[94 20 14 00 46 4A 20 2E 18 03 04 00];//514Mbsp
 		qcom,mdss-dsi-t-clk-post = <0x20>;
 		qcom,mdss-dsi-t-clk-pre = <0x2D>;
 		qcom,mdss-dsi-bl-min-level = <1>;
@@ -666,21 +554,10 @@
 		qcom,mdss-dsi-dma-trigger = "trigger_sw";
 		qcom,mdss-dsi-mdp-trigger = "none";
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,platform-reset-gpio = <&msmgpio 25 0>;
-		qcom,mdss-dsi-reset-sequence = <1 150>;
-		somc,panel-id = [64];
-		somc,pwr-positive5-gpio = <&msmgpio 2 0>;
-		somc,pwr-negative5-gpio = <&msmgpio 3 0>;
-		somc,driver-ic = <4>;
-		somc,panel-detect = <1>;
-		somc,panel-id-read-cmds;
-		somc,alt-panelid-cmd;
-		somc,dsi-restart-hack;
-		somc,no-vsn-gpio;
-		somc,no-vsp-gpio;
+		qcom,mdss-dsi-reset-sequence = <0 1>, <0 10>, <1 150>;
 	};
 
-	dsi_nt35521_720_vid_innolux65: qcom,mdss_dsi_nt35521_720p_video_innolux65 {
+	dsi_nt35521_720_vid_innolux: qcom,mdss_dsi_nt35521_720p_video_innolux {
 		compatible = "qcom,mdss-dsi-panel-innolux";
 		qcom,mdss-dsi-panel-name = "nt35521 720p video mode dsi panel innolux";
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
@@ -696,10 +573,21 @@
 		qcom,mdss-dsi-h-front-porch = <632>; //800Mbps
 		qcom,mdss-dsi-h-back-porch = <295>; //800Mbps
 		qcom,mdss-dsi-h-pulse-width = <40>; //800Mbps
+//		qcom,mdss-dsi-h-front-porch = <114>; //420Mbps
+//		qcom,mdss-dsi-h-back-porch = <50>; //420Mbps
+//		qcom,mdss-dsi-h-pulse-width = <10>; //420Mbps
 		qcom,mdss-dsi-h-sync-skew = <0>;
 		qcom,mdss-dsi-v-back-porch = <18>;
 		qcom,mdss-dsi-v-front-porch = <18>;
 		qcom,mdss-dsi-v-pulse-width = <1>;
+
+		qcom,mdss-dsi-h-front-porch-lte = <232>; //514Mbps
+		qcom,mdss-dsi-h-back-porch-lte = <112>; //514Mbps
+		qcom,mdss-dsi-h-pulse-width-lte = <20>; //514Mbps
+		qcom,mdss-dsi-v-back-porch-lte = <18>;
+		qcom,mdss-dsi-v-front-porch-lte = <18>;
+		qcom,mdss-dsi-v-pulse-width-lte = <1>;
+
 		qcom,mdss-dsi-h-left-border = <0>;
 		qcom,mdss-dsi-h-right-border = <0>;
 		qcom,mdss-dsi-v-top-border = <0>;
@@ -709,7 +597,7 @@
 		qcom,mdss-dsi-underflow-color = <0xff>;
 		qcom,mdss-dsi-border-color = <0>;
 		qcom,mdss-dsi-pixel-packing = <0>;
-		qcom,mdss-dsi-on-command = [
+		qcom,mdss-dsi-on-command-65 = [
 
 		//Date:20140221
 						29 01 00 00 00 00 05 FF AA 55 A5 80
@@ -904,72 +792,8 @@
                 05 01 00 00 00 00 02 29 00
                 29 01 00 00 00 00 02 53 24
 		];
-		qcom,mdss-dsi-off-command = [05 01 00 00 32 00 02 28 00
-					05 01 00 00 96 00 02 10 00];
-		qcom,mdss-dsi-on-command-state = "dsi_lp_mode";
-		qcom,mdss-dsi-off-command-state = "dsi_hs_mode";
-		qcom,mdss-dsi-h-sync-pulse = <1>;
-		qcom,mdss-dsi-traffic-mode = <2>;
-		qcom,mdss-dsi-lane-map = <0>;
-		qcom,mdss-dsi-bllp-eof-power-mode;
-		qcom,mdss-dsi-bllp-power-mode;
-		qcom,mdss-dsi-lane-0-state;
-		qcom,mdss-dsi-lane-1-state;
-		qcom,mdss-dsi-lane-2-state;
-		qcom,mdss-dsi-lane-3-state;
-//		qcom,mdss-dsi-panel-timings = [93 1F 17 00 2F 2E 1C 21 26 03 04 00]; //420Mbps
-		qcom,mdss-dsi-panel-timings =[D5 32 22 00 60 64 26 34 29 03 04 00];//800Mbsp
-		qcom,mdss-dsi-t-clk-post = <0x20>;
-		qcom,mdss-dsi-t-clk-pre = <0x2D>;
-		qcom,mdss-dsi-bl-min-level = <1>;
-		qcom,mdss-dsi-bl-max-level = <255>;
-		qcom,mdss-dsi-dma-trigger = <4>;
-		qcom,mdss-dsi-mdp-trigger = <0>;
-		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,platform-reset-gpio = <&msmgpio 25 0>;
-		qcom,mdss-dsi-reset-sequence = <1 150>;
-		somc,panel-id = [65];
-		somc,pwr-positive5-gpio = <&msmgpio 2 0>;
-		somc,pwr-negative5-gpio = <&msmgpio 3 0>;
-		somc,driver-ic = <4>;
-		somc,panel-detect = <1>;
-		somc,alt-panelid-cmd;
-		somc,dsi-restart-hack;
-		somc,panel-id-read-cmds;
-		somc,no-vsn-gpio;
-		somc,no-vsp-gpio;
-	};
 
-	dsi_nt35521_720_vid_innolux66: qcom,mdss_dsi_nt35521_720p_video_innolux66 {
-		compatible = "qcom,mdss-dsi-panel-innolux";
-		qcom,mdss-dsi-panel-name = "nt35521 720p video mode dsi otp panel innolux";
-		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
-		qcom,mdss-dsi-panel-type = "dsi_video_mode";
-		qcom,mdss-dsi-panel-destination = "display_1";
-		qcom,mdss-dsi-panel-framerate = <60>;
-		qcom,mdss-dsi-virtual-channel-id = <0>;
-		qcom,mdss-dsi-stream = <0>;
-		qcom,mdss-pan-physical-width-dimension = <65>;
-		qcom,mdss-pan-physical-height-dimension = <116>;
-		qcom,mdss-dsi-panel-width = <720>;
-		qcom,mdss-dsi-panel-height = <1280>;
-		qcom,mdss-dsi-h-front-porch = <632>; //800Mbps
-		qcom,mdss-dsi-h-back-porch = <295>; //800Mbps
-		qcom,mdss-dsi-h-pulse-width = <40>; //800Mbps
-		qcom,mdss-dsi-h-sync-skew = <0>;
-		qcom,mdss-dsi-v-back-porch = <18>;
-		qcom,mdss-dsi-v-front-porch = <18>;
-		qcom,mdss-dsi-v-pulse-width = <1>;
-		qcom,mdss-dsi-h-left-border = <0>;
-		qcom,mdss-dsi-h-right-border = <0>;
-		qcom,mdss-dsi-v-top-border = <0>;
-		qcom,mdss-dsi-v-bottom-border = <0>;
-		qcom,mdss-dsi-bpp = <24>;
-		qcom,mdss-dsi-color-order = <0>;
-		qcom,mdss-dsi-underflow-color = <0xff>;
-		qcom,mdss-dsi-border-color = <0>;
-		qcom,mdss-dsi-pixel-packing = <0>;
-		qcom,mdss-dsi-on-command = [
+		qcom,mdss-dsi-on-command-66 = [
 
 				//Modify backlight leds's freq to 65.1kHz
 				29 01 00 00 00 00 06 F0 55 AA 52 08 00
@@ -1000,7 +824,10 @@
 		qcom,mdss-dsi-lane-1-state;
 		qcom,mdss-dsi-lane-2-state;
 		qcom,mdss-dsi-lane-3-state;
+//		qcom,mdss-dsi-panel-timings = [93 1F 17 00 2F 2E 1C 21 26 03 04 00]; //420Mbps
 		qcom,mdss-dsi-panel-timings =[D5 32 22 00 60 64 26 34 29 03 04 00];//800Mbsp
+		qcom,mdss-dsi-panel-timings-lte =[94 20 14 00 46 4A 1A 24 18 03 04 00];//514Mbsp
+
 		qcom,mdss-dsi-t-clk-post = <0x20>;
 		qcom,mdss-dsi-t-clk-pre = <0x2D>;
 		qcom,mdss-dsi-bl-min-level = <1>;
@@ -1008,17 +835,7 @@
 		qcom,mdss-dsi-dma-trigger = <4>;
 		qcom,mdss-dsi-mdp-trigger = <0>;
 		qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-		qcom,platform-reset-gpio = <&msmgpio 25 0>;
-		qcom,mdss-dsi-reset-sequence = <1 150>;
-		somc,panel-id = [66];
-		somc,pwr-positive5-gpio = <&msmgpio 2 0>;
-		somc,pwr-negative5-gpio = <&msmgpio 3 0>;
-		somc,driver-ic = <4>;
-		somc,panel-detect = <1>;
-		somc,alt-panelid-cmd;
-		somc,dsi-restart-hack;
-		somc,panel-id-read-cmds;
-		somc,no-vsn-gpio;
-		somc,no-vsp-gpio;
+		qcom,mdss-dsi-reset-sequence = <1 1>, <0 10>, <1 150>;
+
 	};
 };
