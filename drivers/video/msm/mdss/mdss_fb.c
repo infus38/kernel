@@ -53,7 +53,14 @@
 #include <mach/msm_memtypes.h>
 
 #include "mdss_fb.h"
+#ifdef CONFIG_MACH_SONY_TIANCHI
+#include "mdss_mdp.h"
+#include "mdss_dsi.h"
+#endif
 #include "mdss_mdp_splash_logo.h"
+#if defined (CONFIG_MACH_SONY_FLAMINGO) || defined (CONFIG_MACH_SONY_TIANCHI)
+#include <linux/gpio.h> 
+#endif
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
@@ -230,14 +237,27 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 {
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
 	int bl_lvl;
-
+#ifdef CONFIG_MACH_SONY_TIANCHI
+	int tmp_brightness_max;
+#endif
 	if (value > mfd->panel_info->brightness_max)
 		value = mfd->panel_info->brightness_max;
 
 	/* This maps android backlight level 0 to 255 into
 	   driver backlight level 0 to bl_max with rounding */
+#ifdef CONFIG_MACH_SONY_TIANCHI
+	tmp_brightness_max = mfd->panel_info->brightness_max;
+	if (tmp_brightness_max == 0) {
+		pr_err("%s:mfd->panel_info->brightness_max = 0\n", __func__);
+		tmp_brightness_max = 255;
+	}
+#endif
 	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
+#ifdef CONFIG_MACH_SONY_TIANCHI
+				tmp_brightness_max);
+#else
 				mfd->panel_info->brightness_max);
+#endif
 
 	if (!bl_lvl && value)
 		bl_lvl = 1;
@@ -405,6 +425,23 @@ static ssize_t mdss_fb_get_idle_notify(struct device *dev,
 	return ret;
 }
 
+#ifdef CONFIG_MACH_SONY_FLAMINGO
+#define LCM_ID_PIN	27
+extern char temp_buf[];		
+static ssize_t mdss_fb_lcm_module_id(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+
+	if(*temp_buf != '\0')
+		ret = snprintf(buf, PAGE_SIZE, temp_buf);
+	else
+		ret = snprintf(buf, PAGE_SIZE, "TRULY\n");
+
+	return ret;
+}
+#endif
+
 static ssize_t mdss_fb_get_panel_info(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -516,6 +553,9 @@ static DEVICE_ATTR(msm_fb_split, S_IRUGO, mdss_fb_get_split, NULL);
 static DEVICE_ATTR(show_blank_event, S_IRUGO, mdss_mdp_show_blank_event, NULL);
 static DEVICE_ATTR(idle_time, S_IRUGO | S_IWUSR | S_IWGRP,
 	mdss_fb_get_idle_time, mdss_fb_set_idle_time);
+#ifdef CONFIG_MACH_SONY_FLAMINGO
+static DEVICE_ATTR(lcm_module_id, S_IRUGO, mdss_fb_lcm_module_id, NULL);
+#endif
 static DEVICE_ATTR(idle_notify, S_IRUGO, mdss_fb_get_idle_notify, NULL);
 static DEVICE_ATTR(msm_fb_panel_info, S_IRUGO, mdss_fb_get_panel_info, NULL);
 
@@ -525,6 +565,9 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_show_blank_event.attr,
 	&dev_attr_idle_time.attr,
 	&dev_attr_idle_notify.attr,
+#ifdef CONFIG_MACH_SONY_FLAMINGO
+	&dev_attr_lcm_module_id.attr,	
+#endif
 	&dev_attr_msm_fb_panel_info.attr,
 	NULL,
 };
@@ -658,6 +701,33 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	}
 
 	mdss_fb_set_mdp_sync_pt_threshold(mfd);
+
+#ifdef CONFIG_MACH_SONY_TIANCHI
+	if (mfd->index == 0) {
+		struct mdss_dsi_ctrl_pdata *ctrl_pdata;
+
+		ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+			panel_data);
+		if (!ctrl_pdata) {
+			pr_err("%s: Invalid input data\n", __func__);
+			return -EINVAL;
+		}
+		if (ctrl_pdata->spec_pdata) {
+			if (ctrl_pdata->spec_pdata->panel_detect) {
+				mdss_fb_blank_sub(FB_BLANK_UNBLANK, mfd->fbi,
+					mfd->op_enable);
+				if (pdata->detect)
+					pdata->detect(pdata);
+				mdss_fb_blank_sub(FB_BLANK_POWERDOWN, mfd->fbi,
+					mfd->op_enable);
+				if (pdata->update_panel)
+					pdata->update_panel(pdata);
+			} else {
+				ctrl_pdata->spec_pdata->detected = true;
+			}
+		}
+	}
+#endif
 
 	if (mfd->mdp.splash_init_fnc)
 		mfd->mdp.splash_init_fnc(mfd);
@@ -1491,9 +1561,27 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	var->yoffset = 0,	/* resolution */
 	var->grayscale = 0,	/* No graylevels */
 	var->nonstd = 0,	/* standard pixel format */
-	var->activate = FB_ACTIVATE_VBL,	/* activate it at vsync */
-	var->height = -1,	/* height of picture in mm */
-	var->width = -1,	/* width of picture in mm */
+	var->activate = FB_ACTIVATE_VBL;	/* activate it at vsync */
+#ifdef CONFIG_MACH_SONY_TIANCHI
+	if (panel_info) {
+		if (panel_info->height)
+			var->height = panel_info->height;
+		else
+			var->height = -1;
+		if (panel_info->width)
+			var->width = panel_info->width;
+		else
+			var->width = -1;
+	} else {
+		var->height = -1;
+		var->width = -1;
+		pr_err("%s panel_info null\n", __func__);
+		return ret;
+	}
+#else
+	var->height = -1;	/* height of picture in mm */
+	var->width = -1;	/* width of picture in mm */
+#endif
 	var->accel_flags = 0,	/* acceleration flags */
 	var->sync = 0,	/* see FB_SYNC_* */
 	var->rotate = 0,	/* angle we rotate counter clockwise */
@@ -2243,6 +2331,9 @@ static int __mdss_fb_perform_commit(struct msm_fb_data_type *mfd)
 		else
 			pr_warn("no kickoff function setup for fb%d\n",
 					mfd->index);
+#ifdef CONFIG_MACH_SONY_TIANCHI
+		mdss_dsi_panel_fps_data_update(mfd);
+#endif
 	} else {
 		ret = mdss_fb_pan_display_sub(&fb_backup->disp_commit.var,
 				&fb_backup->info);

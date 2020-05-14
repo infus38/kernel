@@ -142,7 +142,7 @@ enum ldr_status {
 };
 
 #if CYTTSP4_FW_UPGRADE || CYTTSP4_TTCONFIG_UPGRADE
-
+#ifndef CONFIG_MACH_SONY_SEAGULL
 extern int silicon_id;
 
 /* [Optical][Touch] Implement FW upgrade, 20130808, Add Start */
@@ -209,6 +209,7 @@ static int cyttsp4_check_upgrade(struct cyttsp4_device *ttsp)
 	printk("[TP] Do not need to upgrade FW.\n");
 	return 0;
 }
+#endif
 /* [Optical][Touch] Implement FW upgrade, 20130808, Add End*/
 
 /*

@@ -18,6 +18,17 @@
 /include/ "dsi-panel-tianchi.dtsi"
 /include/ "msm8226-yukon_tianchi-camera-sensor.dtsi"
 
+/ {
+	memory {
+		cont_splash_mem: cont_splash_mem@0 {
+			linux,contiguous-region;
+			linux,reserve-region;
+			reg = <0 0x03400000 0 0xFA0000>;
+			label = "cont_splash_mem";
+		};
+	};
+};	
+
 &soc {
 
 	spi@f9923000 {
@@ -369,4 +380,12 @@
 
 &mdss_dsi0 {
 	qcom,dsi-pref-prim-pan = <&dsi_novatek_jdi>;
+};
+
+&mdss_fb0 {
+	qcom,memblock-reserve = <0x03400000 0xFA0000>;
+	qcom,mdss-fb-splash-logo-enabled;
+	qcom,cont-splash-memory {
+		linux,contiguous-region = <&cont_splash_mem>;
+	};
 };

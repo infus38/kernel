@@ -20,6 +20,9 @@
 #include "mdss_panel.h"
 #include "mdss_io_util.h"
 #include "mdss_dsi_cmd.h"
+#ifdef CONFIG_MACH_SONY_TIANCHI
+#include "mdss_fb.h"
+#endif
 
 #define MMSS_SERDES_BASE_PHY 0x04f01000 /* mmss (De)Serializer CFG */
 
@@ -216,6 +219,41 @@ struct dsi_kickoff_action {
 	void *data;
 };
 
+#ifdef CONFIG_MACH_SONY_TIANCHI 
+enum {
+	PANEL_DRIVER_IC_RENESAS,
+	PANEL_DRIVER_IC_NOVATEK,
+	PANEL_DRIVER_IC_NONE,
+};
+
+struct mdss_panel_specific_pdata {
+	bool detected;
+	int driver_ic;
+	int disp_on_in_hs;
+	int panel_detect;
+	int cabc_enabled;
+	int cabc_active;
+	int disp_en_pre;
+	int disp_en_post;
+
+	struct dsi_panel_cmds einit_cmds;
+	struct dsi_panel_cmds init_cmds;
+	struct dsi_panel_cmds on_cmds;
+	struct dsi_panel_cmds off_cmds;
+	struct dsi_panel_cmds id_read_cmds;
+	struct dsi_panel_cmds cabc_on_cmds;
+	struct dsi_panel_cmds cabc_off_cmds;
+
+	int (*panel_power_on) (struct mdss_panel_data *pdata, int enable);
+	int (*disp_on) (struct mdss_panel_data *pdata);
+	int (*detect) (struct mdss_panel_data *pdata);
+	int (*update_panel) (struct mdss_panel_data *pdata);
+	int (*update_fps) (struct msm_fb_data_type *mfd);
+	int (*reset) (struct mdss_panel_data *pdata, int enable);
+
+};
+#endif
+
 struct dsi_drv_cm_data {
 	struct regulator *vdd_vreg;
 	struct regulator *vdd_io_vreg;
@@ -270,6 +308,10 @@ struct mdss_dsi_ctrl_pdata {
 	int panel_mode;
 	int irq_cnt;
 	int rst_gpio;
+#ifdef CONFIG_MACH_SONY_SEAGULL
+	int disp_p5_gpio;
+	int disp_n5_gpio;
+#endif
 	int disp_en_gpio;
 	int disp_te_gpio;
 	int mode_gpio;
@@ -287,12 +329,18 @@ struct mdss_dsi_ctrl_pdata {
 	u32 pclk_rate;
 	u32 byte_clk_rate;
 	struct dss_module_power power_data;
+#ifdef CONFIG_MACH_SONY_TIANCHI
+	struct mdss_panel_specific_pdata *spec_pdata;
+#endif
 	u32 dsi_irq_mask;
 	struct mdss_hw *dsi_hw;
 	struct mdss_panel_recovery *recovery;
 
 	struct dsi_panel_cmds on_cmds;
 	struct dsi_panel_cmds off_cmds;
+#ifdef CONFIG_MACH_SONY_TIANCHI
+	struct dsi_panel_cmds cabc_off_cmds;
+#endif
 	struct dsi_panel_cmds status_cmds;
 	u32 status_value;
 
@@ -327,6 +375,9 @@ struct dsi_status_data {
 int dsi_panel_device_register(struct device_node *pan_node,
 				struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 
+#ifdef CONFIG_MACH_SONY_TIANCHI
+int mdss_dsi_panel_power_detect(struct platform_device *pdev, int enable);
+#endif
 int mdss_dsi_cmds_tx(struct mdss_dsi_ctrl_pdata *ctrl,
 		struct dsi_cmd_desc *cmds, int cnt);
 
@@ -352,7 +403,11 @@ void mdss_dsi_sw_reset(struct mdss_panel_data *pdata);
 irqreturn_t mdss_dsi_isr(int irq, void *ptr);
 void mdss_dsi_irq_handler_config(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 
+#ifdef CONFIG_MACH_SONY_TIANCHI
+void mdss_set_tx_power_mode(int mode, struct mdss_panel_data *pdata);
+#else
 void mdss_dsi_set_tx_power_mode(int mode, struct mdss_panel_data *pdata);
+#endif
 int mdss_dsi_clk_div_config(struct mdss_panel_info *panel_info,
 			    int frame_rate);
 int mdss_dsi_clk_init(struct platform_device *pdev,
@@ -373,6 +428,9 @@ void mdss_dsi_cmd_mdp_busy(struct mdss_dsi_ctrl_pdata *ctrl);
 void mdss_dsi_wait4video_done(struct mdss_dsi_ctrl_pdata *ctrl);
 int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp);
 void mdss_dsi_cmdlist_kickoff(int intf);
+#ifdef CONFIG_MACH_SONY_TIANCHI
+int mdss_dsi_panel_fps_data_update(struct msm_fb_data_type *mfd);
+#endif
 int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
 int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
 bool __mdss_dsi_clk_enabled(struct mdss_dsi_ctrl_pdata *ctrl, u8 clk_type);
