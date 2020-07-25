@@ -26,6 +26,13 @@
 
 #define DT_CMD_HDR 6
 
+#define JDI_NON_PANEL_ID  0x00
+#define JDI_PANEL_ID      0x61
+#define TRULY_PANEL_ID    0x63
+#define TRULY_OTP_PANEL_ID    0x64
+#define INNOLUX_PANEL_ID    0x65
+#define INNOLUX_OTP_PANEL_ID    0x66
+
 #define MIN_REFRESH_RATE 30
 #define SYSTEM_RESET_PIN_TS 16
 #define TRULY_MIPI_DISP_RST_N 25
@@ -33,6 +40,81 @@
 int lcm_first_boot=1;
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
+
+static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
+		struct dsi_panel_cmds *pcmds, char *cmd_key, char *link_key);
+
+struct device_node *gMIPIDSInode;
+static bool display_on_in_boot = false;
+static int DisplayGpioInit=0;
+static int DisplayGpioReady=0;
+static unsigned char gFirstChange = 0;
+static unsigned char gPanelModel = 0;
+static char manufacture_idDA[2] = {0xDA, 0x00};
+
+static struct dsi_cmd_desc manufacture_id_cmd = {
+	.dchdr = {
+		DTYPE_DCS_READ, 1, 0, 1, 20, sizeof(manufacture_idDA),
+	},
+	.payload = manufacture_idDA,
+};
+
+static void mdss_manufacture_cb(int data)
+{
+	return;
+}
+
+unsigned char mdss_manufacture_id(struct mdss_dsi_ctrl_pdata *ctrl)
+{
+	struct dcs_cmd_req cmdreq;
+	char rx_buffer=0xFF;
+
+	memset(&cmdreq, 0, sizeof(cmdreq));
+
+	cmdreq.cmds = &manufacture_id_cmd;
+	cmdreq.cmds_cnt = 1;
+	cmdreq.flags = CMD_REQ_RX | CMD_REQ_COMMIT;
+	cmdreq.rlen = 1;
+	cmdreq.cb = mdss_manufacture_cb;
+	cmdreq.rbuf = &rx_buffer;
+	mdss_dsi_cmdlist_put(ctrl, &cmdreq);
+	memcpy(&rx_buffer,cmdreq.rbuf,sizeof(char));
+	gPanelModel = rx_buffer;
+
+	return gPanelModel;
+}
+
+int mdss_change_dcs_cmd(struct device_node *npIn,
+		struct mdss_dsi_ctrl_pdata *ctrl, const char* name, const int id)
+{
+	struct device_node *all_nodes = NULL;
+	struct device_node *np = npIn;
+	char* panel_name = np->properties->value;
+	char cmd_name[30] = {0};
+	int cmd_name_size = sizeof(cmd_name)/sizeof(cmd_name[0]);
+
+	printk("[DISPLAY]%s: %s, id 0x%x\n", __func__, panel_name, id);
+
+	if (strncmp(panel_name, name, strnlen(name, 128)) || !gFirstChange) {
+		all_nodes = of_find_all_nodes(NULL);
+		np = of_find_compatible_node(all_nodes, NULL, name);
+		npIn = np;
+
+		snprintf(cmd_name, cmd_name_size, "qcom,mdss-dsi-on-command-%x", id);
+		mdss_dsi_parse_dcs_cmds(np, &ctrl->on_cmds,
+			cmd_name, "qcom,mdss-dsi-on-command-state");
+
+		mdss_dsi_parse_dcs_cmds(np, &ctrl->off_cmds,
+			"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
+
+		gFirstChange = 1;
+		panel_name = np->properties->value;
+
+		printk("[DISPLAY]%s: change to %s\n", __func__, panel_name);
+	}
+
+    return 0;
+}
 
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
@@ -192,6 +274,21 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 			rc);
 		goto rst_gpio_err;
 	}
+	if (of_machine_is_compatible("somc,seagull")) {
+		rc = gpio_request(ctrl_pdata->disp_p5_gpio, "disp_p5");
+		if (rc) {
+			pr_err("request p5 gpio failed, rc=%d\n",
+				   rc);
+			goto p5_gpio_err;
+		}
+
+		rc = gpio_request(ctrl_pdata->disp_n5_gpio, "disp_n5");
+		if (rc) {
+			pr_err("request p5 gpio failed, rc=%d\n",
+				   rc);
+			goto n5_gpio_err;
+		}
+	}
 	if (gpio_is_valid(ctrl_pdata->mode_gpio)) {
 		rc = gpio_request(ctrl_pdata->mode_gpio, "panel_mode");
 		if (rc) {
@@ -200,8 +297,17 @@ static int mdss_dsi_request_gpios(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 			goto mode_gpio_err;
 		}
 	}
+	if (of_machine_is_compatible("somc,seagull")) {
+		DisplayGpioInit = 1;
+	}
 	return rc;
 
+if (of_machine_is_compatible("somc,seagull")) {
+	n5_gpio_err:
+		gpio_free(ctrl_pdata->disp_n5_gpio);
+	p5_gpio_err:
+		gpio_free(ctrl_pdata->disp_p5_gpio);
+}
 mode_gpio_err:
 	gpio_free(ctrl_pdata->rst_gpio);
 rst_gpio_err:
@@ -249,6 +355,37 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_set_value((ctrl_pdata->rst_gpio), 1);
 			gpio_direction_output(SYSTEM_RESET_PIN_TS, 1);
 			msleep(120);
+		} else if (of_machine_is_compatible("somc,seagull")) {
+			if((!DisplayGpioReady)&&(display_on_in_boot)) {
+				DisplayGpioReady=1;
+				printk("[DISPLAY]%s: Gpio have been init before\n", __func__ );
+				return rc;
+			}
+			rc = mdss_dsi_request_gpios(ctrl_pdata);
+			if (rc) {
+				pr_err("gpio request failed\n");
+			return rc;
+			}
+			if (!pinfo->panel_power_on) {
+				gpio_set_value((ctrl_pdata->disp_en_gpio),0);
+				gpio_set_value((ctrl_pdata->disp_p5_gpio),0);
+				gpio_set_value((ctrl_pdata->disp_n5_gpio),0);
+				msleep(1);
+				if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+					gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+				if (gpio_is_valid(ctrl_pdata->disp_p5_gpio))
+					gpio_set_value((ctrl_pdata->disp_p5_gpio) , 1);
+				msleep(1);
+				if (gpio_is_valid(ctrl_pdata->disp_n5_gpio))
+					gpio_set_value((ctrl_pdata->disp_n5_gpio) , 1);
+				msleep(50);
+				for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
+					gpio_set_value((ctrl_pdata->rst_gpio),
+						pdata->panel_info.rst_seq[i]);
+					if (pdata->panel_info.rst_seq[++i])
+						msleep(pinfo->rst_seq[i]);
+				}
+			}
 		} else {
 			rc = mdss_dsi_request_gpios(ctrl_pdata);
 			if (rc) {
@@ -281,16 +418,45 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			pr_debug("%s: Reset panel done\n", __func__);
 		}
 	} else {
-		if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
-			gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
-			gpio_free(ctrl_pdata->disp_en_gpio);
+		if (of_machine_is_compatible("somc,seagull")) {
+			if((DisplayGpioReady==1)&&(display_on_in_boot)){
+				rc = mdss_dsi_request_gpios(ctrl_pdata);
+				DisplayGpioReady=2;
+				printk("[DISPLAY]%s: Request gpio for release fist deinit\n", __func__ );
+			}
 		}
-		gpio_set_value((ctrl_pdata->rst_gpio), 0);
-		if (of_machine_is_compatible("somc,flamingo")) {
-			msleep(10);
-			gpio_set_value((ctrl_pdata->rst_gpio), 1);
-		}
+		if (of_machine_is_compatible("somc,seagull")) {
+			if(DisplayGpioInit) {
+				if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+					gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+					gpio_free(ctrl_pdata->disp_en_gpio);
+				}
+				if (gpio_is_valid(ctrl_pdata->disp_n5_gpio)) {
+					gpio_set_value((ctrl_pdata->disp_n5_gpio) , 0);
+					gpio_free(ctrl_pdata->disp_n5_gpio);
+				}
+				msleep(10);
+				if (gpio_is_valid(ctrl_pdata->disp_p5_gpio)) {
+					gpio_set_value((ctrl_pdata->disp_p5_gpio) , 0);
+					gpio_free(ctrl_pdata->disp_p5_gpio);
+				}
+				msleep(10);
+				gpio_set_value((ctrl_pdata->rst_gpio), 0);
+				gpio_free(ctrl_pdata->rst_gpio);
+				}
+			DisplayGpioInit = 0;
+		} else {
+			if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+				gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
+				gpio_free(ctrl_pdata->disp_en_gpio);
+			}
+			gpio_set_value((ctrl_pdata->rst_gpio), 0);
+			if (of_machine_is_compatible("somc,flamingo")) {
+				msleep(10);
+				gpio_set_value((ctrl_pdata->rst_gpio), 1);
+			}
 		gpio_free(ctrl_pdata->rst_gpio);
+		}
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
 	}
@@ -472,7 +638,32 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	mipi  = &pdata->panel_info.mipi;
 
 	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+	if (of_machine_is_compatible("somc,seagull")) {
+		if (ctrl) {
+			mdss_manufacture_id(ctrl);
+				switch (gPanelModel) {
+				case JDI_NON_PANEL_ID:
+				case JDI_PANEL_ID:
+					mdss_change_dcs_cmd(gMIPIDSInode, ctrl,
+							"qcom,mdss-dsi-panel-jdi", gPanelModel);
+					break;
+				case TRULY_PANEL_ID:
+				case TRULY_OTP_PANEL_ID:
+					mdss_change_dcs_cmd(gMIPIDSInode, ctrl,
+							"qcom,mdss-dsi-panel-truly", gPanelModel);
+					break;
+				case INNOLUX_PANEL_ID:
+				case INNOLUX_OTP_PANEL_ID:
+					mdss_change_dcs_cmd(gMIPIDSInode, ctrl,
+							"qcom,mdss-dsi-panel-innolux", gPanelModel);
+					break;
 
+				default:
+					printk(KERN_ERR "[DISPLAY] illegal PID <0x%x>\n", gPanelModel);
+					break;
+				}
+		}
+	}
 	if (of_machine_is_compatible("somc,flamingo")) {
 		if(lcm_first_boot == 0){
 			gpio_set_value(TRULY_MIPI_DISP_RST_N, 1);
@@ -1087,20 +1278,37 @@ static int mdss_panel_parse_dt(struct device_node *np,
 				__func__);
 		pinfo->pdest = DISPLAY_1;
 	}
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch", &tmp);
-	pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch", &tmp);
-	pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width", &tmp);
-	pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-h-sync-skew", &tmp);
-	pinfo->lcdc.hsync_skew = (!rc ? tmp : 0);
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch", &tmp);
-	pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch", &tmp);
-	pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
-	rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width", &tmp);
-	pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
+	if ((of_machine_is_compatible("somc,seagull")) && (of_machine_is_compatible("qcom,msm8926"))) {
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch-lte", &tmp);
+		pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch-lte", &tmp);
+		pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width-lte", &tmp);
+		pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-sync-skew", &tmp);
+		pinfo->lcdc.hsync_skew = (!rc ? tmp : 0);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch-lte", &tmp);
+		pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch-lte", &tmp);
+		pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width-lte", &tmp);
+		pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
+	} else {
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-front-porch", &tmp);
+		pinfo->lcdc.h_front_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-back-porch", &tmp);
+		pinfo->lcdc.h_back_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-pulse-width", &tmp);
+		pinfo->lcdc.h_pulse_width = (!rc ? tmp : 2);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-h-sync-skew", &tmp);
+		pinfo->lcdc.hsync_skew = (!rc ? tmp : 0);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-back-porch", &tmp);
+		pinfo->lcdc.v_back_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-front-porch", &tmp);
+		pinfo->lcdc.v_front_porch = (!rc ? tmp : 6);
+		rc = of_property_read_u32(np, "qcom,mdss-dsi-v-pulse-width", &tmp);
+		pinfo->lcdc.v_pulse_width = (!rc ? tmp : 2);
+	}
 	rc = of_property_read_u32(np,
 		"qcom,mdss-dsi-underflow-color", &tmp);
 	pinfo->lcdc.underflow_clr = (!rc ? tmp : 0xff);
@@ -1251,7 +1459,12 @@ static int mdss_panel_parse_dt(struct device_node *np,
 	pinfo->mipi.frame_rate = (!rc ? tmp : 60);
 	rc = of_property_read_u32(np, "qcom,mdss-dsi-panel-clockrate", &tmp);
 	pinfo->clk_rate = (!rc ? tmp : 0);
-	data = of_get_property(np, "qcom,mdss-dsi-panel-timings", &len);
+	if ((of_machine_is_compatible("somc,seagull")) && (of_machine_is_compatible("qcom,msm8926"))) {
+		data = of_get_property(np, "qcom,mdss-dsi-panel-timings-lte", &len);
+		pr_info("[DISPLAY]%s: lte timing\n", __func__);
+	} else {
+		data = of_get_property(np, "qcom,mdss-dsi-panel-timings", &len);
+	}
 	if ((!data) || (len != 12)) {
 		pr_err("%s:%d, Unable to read Phy timing settings",
 		       __func__, __LINE__);
@@ -1280,8 +1493,13 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		"qcom,mdss-dsi-reset-sequence");
 	mdss_panel_parse_te_params(np, pinfo);
 
-	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
-		"qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
+	if (of_machine_is_compatible("somc,seagull")) {
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
+			"qcom,mdss-dsi-on-command-63", "qcom,mdss-dsi-on-command-state");
+	} else {
+		mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->on_cmds,
+			"qcom,mdss-dsi-on-command", "qcom,mdss-dsi-on-command-state");
+	}
 
 	mdss_dsi_parse_dcs_cmds(np, &ctrl_pdata->off_cmds,
 		"qcom,mdss-dsi-off-command", "qcom,mdss-dsi-off-command-state");
@@ -1341,6 +1559,9 @@ int mdss_dsi_panel_init(struct device_node *node,
 		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
 
 	rc = mdss_panel_parse_dt(node, ctrl_pdata);
+	if (of_machine_is_compatible("somc,seagull")) {
+		gMIPIDSInode = node;
+	}
 	if (rc) {
 		pr_err("%s:%d panel dt parse failed\n", __func__, __LINE__);
 		return rc;
@@ -1348,6 +1569,9 @@ int mdss_dsi_panel_init(struct device_node *node,
 
 	if (!cmd_cfg_cont_splash)
 		pinfo->cont_splash_enabled = false;
+	if (of_machine_is_compatible("somc,seagull")) {
+		pinfo->cont_splash_enabled = display_on_in_boot;
+	}
 	pr_info("%s: Continuous splash %s", __func__,
 		pinfo->cont_splash_enabled ? "enabled" : "disabled");
 
@@ -1371,3 +1595,26 @@ int mdss_dsi_panel_init(struct device_node *node,
 
 	return 0;
 }
+static int __init display_on_in_boot_setup(char *str)
+{
+	if (!str)
+		return 0;
+	if (!strncmp(str, "on", 2))
+		display_on_in_boot = true;
+
+	printk("[DISPLAY]%s: --display_on_in_boot=%d\n", __func__,display_on_in_boot);
+	return 0;
+}
+__setup("display_status=", display_on_in_boot_setup);
+
+static int __init continous_splash_setup(char *str)
+{
+	if (!str)
+		return 0;
+	if (!strncmp(str, "on", 2))
+		display_on_in_boot = true;
+
+	printk("[DISPLAY]%s: --display_on_in_boot=%d\n", __func__,display_on_in_boot);
+	return 0;
+}
+__setup("display_status=", continous_splash_setup);
