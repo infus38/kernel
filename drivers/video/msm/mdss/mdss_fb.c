@@ -54,6 +54,7 @@
 
 #include "mdss_fb.h"
 #include "mdss_mdp_splash_logo.h"
+#include <linux/gpio.h> 
 
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
@@ -301,6 +302,9 @@ static void mdss_fb_parse_dt(struct msm_fb_data_type *mfd)
 	u32 data[2] = {0};
 	u32 panel_xres;
 	struct platform_device *pdev = mfd->pdev;
+	if (of_machine_is_compatible("somc,flamingo")) {
+		mfd->splash_logo_enabled = of_property_read_bool(pdev->dev.of_node, "qcom,mdss-fb-splash-logo-enabled"); 
+	}
 
 	of_property_read_u32_array(pdev->dev.of_node,
 		"qcom,mdss-fb-split", data, 2);
@@ -405,6 +409,24 @@ static ssize_t mdss_fb_get_idle_notify(struct device *dev,
 	return ret;
 }
 
+#define LCM_ID_PIN	27
+extern char temp_buf[];
+static ssize_t mdss_fb_lcm_module_id(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	if (of_machine_is_compatible("somc,flamingo")) {
+		ssize_t ret = 0;
+				
+		if(*temp_buf != '\0')
+			ret = snprintf(buf, PAGE_SIZE, temp_buf);
+		else
+			ret = snprintf(buf, PAGE_SIZE, "TRULY\n");
+
+		return ret;
+	} else {
+		return (0);
+	}
+}
 static ssize_t mdss_fb_get_panel_info(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -516,6 +538,7 @@ static DEVICE_ATTR(msm_fb_split, S_IRUGO, mdss_fb_get_split, NULL);
 static DEVICE_ATTR(show_blank_event, S_IRUGO, mdss_mdp_show_blank_event, NULL);
 static DEVICE_ATTR(idle_time, S_IRUGO | S_IWUSR | S_IWGRP,
 	mdss_fb_get_idle_time, mdss_fb_set_idle_time);
+static DEVICE_ATTR(lcm_module_id, S_IRUGO, mdss_fb_lcm_module_id, NULL);
 static DEVICE_ATTR(idle_notify, S_IRUGO, mdss_fb_get_idle_notify, NULL);
 static DEVICE_ATTR(msm_fb_panel_info, S_IRUGO, mdss_fb_get_panel_info, NULL);
 
@@ -526,6 +549,7 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_idle_time.attr,
 	&dev_attr_idle_notify.attr,
 	&dev_attr_msm_fb_panel_info.attr,
+	&dev_attr_lcm_module_id.attr,
 	NULL,
 };
 

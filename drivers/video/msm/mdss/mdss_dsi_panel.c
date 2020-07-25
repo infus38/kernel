@@ -27,6 +27,10 @@
 #define DT_CMD_HDR 6
 
 #define MIN_REFRESH_RATE 30
+#define SYSTEM_RESET_PIN_TS 16
+#define TRULY_MIPI_DISP_RST_N 25
+#define TRULY_LCM_BL_EN 15
+int lcm_first_boot=1;
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
@@ -236,20 +240,31 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 
 	if (enable) {
-		rc = mdss_dsi_request_gpios(ctrl_pdata);
-		if (rc) {
-			pr_err("gpio request failed\n");
-			return rc;
-		}
-		if (!pinfo->panel_power_on) {
-			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
-				gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
+		if (of_machine_is_compatible("somc,flamingo")) {
+			gpio_direction_output(SYSTEM_RESET_PIN_TS, 0);
+			gpio_set_value((ctrl_pdata->rst_gpio), 1);
+			msleep(10);
+			gpio_set_value((ctrl_pdata->rst_gpio), 0);
+			msleep(10);
+			gpio_set_value((ctrl_pdata->rst_gpio), 1);
+			gpio_direction_output(SYSTEM_RESET_PIN_TS, 1);
+			msleep(120);
+		} else {
+			rc = mdss_dsi_request_gpios(ctrl_pdata);
+			if (rc) {
+				pr_err("gpio request failed\n");
+				return rc;
+			}
+			if (!pinfo->panel_power_on) {
+				if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+					gpio_set_value((ctrl_pdata->disp_en_gpio), 1);
 
-			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
-				gpio_set_value((ctrl_pdata->rst_gpio),
-					pdata->panel_info.rst_seq[i]);
-				if (pdata->panel_info.rst_seq[++i])
-					usleep(pinfo->rst_seq[i] * 1000);
+				for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
+					gpio_set_value((ctrl_pdata->rst_gpio),
+						pdata->panel_info.rst_seq[i]);
+					if (pdata->panel_info.rst_seq[++i])
+						usleep(pinfo->rst_seq[i] * 1000);
+				}
 			}
 		}
 
@@ -271,6 +286,10 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
 		gpio_set_value((ctrl_pdata->rst_gpio), 0);
+		if (of_machine_is_compatible("somc,flamingo")) {
+			msleep(10);
+			gpio_set_value((ctrl_pdata->rst_gpio), 1);
+		}
 		gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
 			gpio_free(ctrl_pdata->mode_gpio);
@@ -333,6 +352,27 @@ static int mdss_dsi_panel_partial_update(struct mdss_panel_data *pdata)
 	return rc;
 }
 
+static int aat1430_backlight_control(struct mdss_dsi_ctrl_pdata *ctrl, int bl_level)
+{
+     int i = 0;
+     int set_bl; 
+	set_bl = abs(ctrl->panel_data.panel_info.bl_max-bl_level)+1;
+	 pr_info("[R]%s:++,bl_level %d \n", __func__,bl_level);
+	 for (i=0;i<set_bl;i++)	
+	 	{
+                     gpio_set_value(TRULY_LCM_BL_EN, 1);
+			udelay(10);
+			gpio_set_value(TRULY_LCM_BL_EN, 0);
+			udelay(10);
+	 	}
+	 if(bl_level==0)	 	
+	 	gpio_set_value(TRULY_LCM_BL_EN, 0);
+	 else
+	       gpio_set_value(TRULY_LCM_BL_EN, 1);
+		udelay(500);	
+   return 0;
+}
+
 static void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
 							int mode)
 {
@@ -367,7 +407,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 							u32 bl_level)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
-
+	unsigned long flags;
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
@@ -408,6 +448,11 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	default:
 		pr_err("%s: Unknown bl_ctrl configuration\n",
 			__func__);
+		if (of_machine_is_compatible("somc,flamingo")) {
+			spin_lock_irqsave(&ctrl_pdata->irq_lock, flags);
+			aat1430_backlight_control(ctrl_pdata, bl_level);
+			spin_unlock_irqrestore(&ctrl_pdata->irq_lock, flags);
+		}
 		break;
 	}
 }
@@ -427,6 +472,18 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 	mipi  = &pdata->panel_info.mipi;
 
 	pr_debug("%s: ctrl=%p ndx=%d\n", __func__, ctrl, ctrl->ndx);
+
+	if (of_machine_is_compatible("somc,flamingo")) {
+		if(lcm_first_boot == 0){
+			gpio_set_value(TRULY_MIPI_DISP_RST_N, 1);
+			msleep(10);
+			gpio_set_value(TRULY_MIPI_DISP_RST_N, 0);
+			msleep(10);
+			gpio_set_value(TRULY_MIPI_DISP_RST_N, 1);
+			msleep(120);
+		}
+		lcm_first_boot=0;
+	}
 
 	if (ctrl->on_cmds.cmd_cnt)
 		mdss_dsi_panel_cmds_send(ctrl, &ctrl->on_cmds);
@@ -1082,6 +1139,8 @@ static int mdss_panel_parse_dt(struct device_node *np,
 			ctrl_pdata->pwm_pmic_gpio = tmp;
 		} else if (!strncmp(data, "bl_ctrl_dcs", 11)) {
 			ctrl_pdata->bklt_ctrl = BL_DCS_CMD;
+		} else if (of_machine_is_compatible("somc,flamingo")) {
+                	ctrl_pdata ->bklt_ctrl = pinfo->bklt_ctrl;
 		}
 	}
 	rc = of_property_read_u32(np, "qcom,mdss-brightness-max-level", &tmp);
@@ -1291,6 +1350,16 @@ int mdss_dsi_panel_init(struct device_node *node,
 		pinfo->cont_splash_enabled = false;
 	pr_info("%s: Continuous splash %s", __func__,
 		pinfo->cont_splash_enabled ? "enabled" : "disabled");
+
+	if (of_machine_is_compatible("somc,flamingo")) {
+		rc =gpio_request(TRULY_LCM_BL_EN,"BL EN PIN");
+		   if (rc) {
+			pr_info("gpio15 request failed: %d\n", rc);
+		} else {
+			udelay(10);
+			msleep(1);
+		}
+	}
 
 	pinfo->dynamic_switch_pending = false;
 	pinfo->is_lpm_mode = false;
