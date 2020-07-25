@@ -316,6 +316,8 @@ struct mdss_dsi_ctrl_pdata {
 	struct dsi_buf rx_buf;
 	struct dsi_buf status_buf;
 	int status_mode;
+	struct regulator *vdd_io_vreg;
+	struct regulator *vdda_vreg;
 };
 
 struct dsi_status_data {
