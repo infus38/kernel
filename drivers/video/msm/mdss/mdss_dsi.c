@@ -76,7 +76,11 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 		}
 
 		if (!pdata->panel_info.mipi.lp11_init) {
-			ret = mdss_dsi_panel_reset(pdata, 1);
+			if (of_machine_is_compatible("somc,tianchi")) {
+				ret = mdss_dsi_panel_reset_panel(pdata, 1);
+			} else {
+				ret = mdss_dsi_panel_reset(pdata, 1);
+			}
 			if (ret) {
 				pr_err("%s: Panel reset failed. rc=%d\n",
 						__func__, ret);
@@ -88,7 +92,11 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			}
 		}
 	} else {
-		ret = mdss_dsi_panel_reset(pdata, 0);
+		if (of_machine_is_compatible("somc,tianchi")) {
+			ret = mdss_dsi_panel_reset_panel(pdata, 0);
+		} else {
+			ret = mdss_dsi_panel_reset(pdata, 0);
+		}
 		if (ret) {
 			pr_err("%s: Panel reset failed. rc=%d\n",
 					__func__, ret);
@@ -693,7 +701,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	}
 	if (of_machine_is_compatible("somc,tianchi")) {
 		if (!mipi->lp11_init) {
-			ret = mdss_dsi_panel_reset(pdata, 1);
+			ret = mdss_dsi_panel_reset_panel(pdata, 1);
 			if (ret) {
 				pr_err("%s: Panel reset failed. rc=%d\n",
 						__func__, ret);
@@ -736,8 +744,13 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	 * Issue hardware reset line after enabling the DSI clocks and data
 	 * data lanes for LP11 init
 	 */
-	if (mipi->lp11_init)
-		mdss_dsi_panel_reset(pdata, 1);
+	if (mipi->lp11_init) {
+		if (of_machine_is_compatible("somc,tianchi")) {
+			mdss_dsi_panel_reset_panel(pdata, 1);
+		} else {
+			mdss_dsi_panel_reset(pdata, 1);
+		}
+	}
 
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
@@ -1322,8 +1335,11 @@ static int __devinit mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	}
 
 	cmd_cfg_cont_splash = mdss_panel_get_boot_cfg() ? true : false;
-
-	rc = mdss_dsi_panel_init(dsi_pan_node, ctrl_pdata, cmd_cfg_cont_splash);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		rc = mdss_dsi_panel_init_alt(dsi_pan_node, ctrl_pdata, cmd_cfg_cont_splash);
+	} else {
+		rc = mdss_dsi_panel_init(dsi_pan_node, ctrl_pdata, cmd_cfg_cont_splash);
+	}	
 	if (rc) {
 		pr_err("%s: dsi panel init failed\n", __func__);
 		goto error_pan_node;

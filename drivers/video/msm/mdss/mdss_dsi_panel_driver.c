@@ -764,71 +764,6 @@ exit_free:
 	return -ENOMEM;
 }
 
-int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
-				char *dst_format)
-{
-	int rc = 0;
-	switch (bpp) {
-	case 3:
-		*dst_format = DSI_CMD_DST_FORMAT_RGB111;
-		break;
-	case 8:
-		*dst_format = DSI_CMD_DST_FORMAT_RGB332;
-		break;
-	case 12:
-		*dst_format = DSI_CMD_DST_FORMAT_RGB444;
-		break;
-	case 16:
-		switch (mipi_mode) {
-		case DSI_VIDEO_MODE:
-			*dst_format = DSI_VIDEO_DST_FORMAT_RGB565;
-			break;
-		case DSI_CMD_MODE:
-			*dst_format = DSI_CMD_DST_FORMAT_RGB565;
-			break;
-		default:
-			*dst_format = DSI_VIDEO_DST_FORMAT_RGB565;
-			break;
-		}
-		break;
-	case 18:
-		switch (mipi_mode) {
-		case DSI_VIDEO_MODE:
-			if (pixel_packing == 0)
-				*dst_format = DSI_VIDEO_DST_FORMAT_RGB666;
-			else
-				*dst_format = DSI_VIDEO_DST_FORMAT_RGB666_LOOSE;
-			break;
-		case DSI_CMD_MODE:
-			*dst_format = DSI_CMD_DST_FORMAT_RGB666;
-			break;
-		default:
-			if (pixel_packing == 0)
-				*dst_format = DSI_VIDEO_DST_FORMAT_RGB666;
-			else
-				*dst_format = DSI_VIDEO_DST_FORMAT_RGB666_LOOSE;
-			break;
-		}
-		break;
-	case 24:
-		switch (mipi_mode) {
-		case DSI_VIDEO_MODE:
-			*dst_format = DSI_VIDEO_DST_FORMAT_RGB888;
-			break;
-		case DSI_CMD_MODE:
-			*dst_format = DSI_CMD_DST_FORMAT_RGB888;
-			break;
-		default:
-			*dst_format = DSI_VIDEO_DST_FORMAT_RGB888;
-			break;
-		}
-		break;
-	default:
-		rc = -EINVAL;
-		break;
-	}
-	return rc;
-}
 
 static inline int mdss_dsi_panel_regulators(
 				struct mdss_dsi_ctrl_pdata *ctrl, int enable)
@@ -926,7 +861,7 @@ exit:
 #define VREG_DISABLE_WAIT_US 6000
 #define VREG_DISABLE_WAIT_MAX_US 7000
 
-static int mdss_dsi_panel_reset_panel(
+int mdss_dsi_panel_reset_panel(
 		struct mdss_panel_data *pdata, int enable)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
@@ -1122,34 +1057,6 @@ int mdss_dsi_panel_fps_data_update(struct msm_fb_data_type *mfd)
 		update_fps_data(&fpsd);
 
 	return 0;
-}
-
-void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
-{
-	int ret;
-
-	if (!gpio_is_valid(ctrl->pwm_pmic_gpio)) {
-		pr_err("%s: pwm_pmic_gpio=%d Invalid\n", __func__,
-				ctrl->pwm_pmic_gpio);
-		ctrl->pwm_pmic_gpio = -1;
-		return;
-	}
-
-	ret = gpio_request(ctrl->pwm_pmic_gpio, "disp_pwm");
-	if (ret) {
-		pr_err("%s: pwm_pmic_gpio=%d request failed\n", __func__,
-				ctrl->pwm_pmic_gpio);
-		ctrl->pwm_pmic_gpio = -1;
-		return;
-	}
-
-	ctrl->pwm_bl = pwm_request(ctrl->pwm_lpg_chan, "lcd-bklt");
-	if (ctrl->pwm_bl == NULL || IS_ERR(ctrl->pwm_bl)) {
-		pr_err("%s: lpg_chan=%d pwm request failed", __func__,
-				ctrl->pwm_lpg_chan);
-		gpio_free(ctrl->pwm_pmic_gpio);
-		ctrl->pwm_pmic_gpio = -1;
-	}
 }
 
 static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
@@ -1865,7 +1772,7 @@ error:
 	return -EINVAL;
 }
 
-int mdss_dsi_panel_init(struct device_node *node,
+int mdss_dsi_panel_init_alt(struct device_node *node,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 	bool cmd_cfg_cont_splash)
 {
@@ -2034,9 +1941,4 @@ error:
 error_attr:
 	device_unregister(&virtdev);
 	return rc;
-}
-
-int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
-{
-	return mdss_dsi_panel_reset_panel(pdata, enable);
 }

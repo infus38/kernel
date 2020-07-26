@@ -1312,7 +1312,12 @@ static int msm_dsi_cont_on(struct mdss_panel_data *pdata)
 		return ret;
 	}
 	pinfo->panel_power_on = 1;
-	ret = mdss_dsi_panel_reset(pdata, 1);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		ret = mdss_dsi_panel_reset_panel(pdata, 1);
+	} else {
+		ret = mdss_dsi_panel_reset(pdata, 1);
+	}
+
 	if (ret) {
 		pr_err("%s: Panel reset failed\n", __func__);
 		mutex_unlock(&ctrl_pdata->mutex);
@@ -1719,8 +1724,11 @@ static int __devinit msm_dsi_probe(struct platform_device *pdev)
 	}
 
 	cmd_cfg_cont_splash = mdp3_panel_get_boot_cfg() ? true : false;
-
-	rc = mdss_dsi_panel_init(dsi_pan_node, ctrl_pdata, cmd_cfg_cont_splash);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		rc = mdss_dsi_panel_init_alt(dsi_pan_node, ctrl_pdata, cmd_cfg_cont_splash);
+	} else {
+		rc = mdss_dsi_panel_init(dsi_pan_node, ctrl_pdata, cmd_cfg_cont_splash);
+	}
 	if (rc) {
 		pr_err("%s: dsi panel init failed\n", __func__);
 		goto error_pan_node;

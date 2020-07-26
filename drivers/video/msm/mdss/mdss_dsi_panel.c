@@ -118,10 +118,32 @@ int mdss_change_dcs_cmd(struct device_node *npIn,
 
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
+	int ret;
+
+  	if (of_machine_is_compatible("somc,tianchi")) {
+		if (!gpio_is_valid(ctrl->pwm_pmic_gpio)) {
+			pr_err("%s: pwm_pmic_gpio=%d Invalid\n", __func__,
+					ctrl->pwm_pmic_gpio);
+			ctrl->pwm_pmic_gpio = -1;
+			return;
+		}
+
+		ret = gpio_request(ctrl->pwm_pmic_gpio, "disp_pwm");
+		if (ret) {
+			pr_err("%s: pwm_pmic_gpio=%d request failed\n", __func__,
+					ctrl->pwm_pmic_gpio);
+			ctrl->pwm_pmic_gpio = -1;
+			return;
+		}
+	}
 	ctrl->pwm_bl = pwm_request(ctrl->pwm_lpg_chan, "lcd-bklt");
 	if (ctrl->pwm_bl == NULL || IS_ERR(ctrl->pwm_bl)) {
 		pr_err("%s: Error: lpg_chan=%d pwm request failed",
 				__func__, ctrl->pwm_lpg_chan);
+  		if (of_machine_is_compatible("somc,tianchi")) {
+			gpio_free(ctrl->pwm_pmic_gpio);
+			ctrl->pwm_pmic_gpio = -1;
+		}
 	}
 }
 
@@ -1543,58 +1565,63 @@ int mdss_dsi_panel_init(struct device_node *node,
 	static const char *panel_name;
 	struct mdss_panel_info *pinfo;
 
-	if (!node || !ctrl_pdata) {
-		pr_err("%s: Invalid arguments\n", __func__);
-		return -ENODEV;
-	}
-
-	pinfo = &ctrl_pdata->panel_data.panel_info;
-
-	pr_debug("%s:%d\n", __func__, __LINE__);
-	panel_name = of_get_property(node, "qcom,mdss-dsi-panel-name", NULL);
-	if (!panel_name)
-		pr_info("%s:%d, Panel name not specified\n",
-						__func__, __LINE__);
-	else
-		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
-
-	rc = mdss_panel_parse_dt(node, ctrl_pdata);
-	if (of_machine_is_compatible("somc,seagull")) {
-		gMIPIDSInode = node;
-	}
-	if (rc) {
-		pr_err("%s:%d panel dt parse failed\n", __func__, __LINE__);
-		return rc;
-	}
-
-	if (!cmd_cfg_cont_splash)
-		pinfo->cont_splash_enabled = false;
-	if (of_machine_is_compatible("somc,seagull")) {
-		pinfo->cont_splash_enabled = display_on_in_boot;
-	}
-	pr_info("%s: Continuous splash %s", __func__,
-		pinfo->cont_splash_enabled ? "enabled" : "disabled");
-
-	if (of_machine_is_compatible("somc,flamingo")) {
-		rc =gpio_request(TRULY_LCM_BL_EN,"BL EN PIN");
-		   if (rc) {
-			pr_info("gpio15 request failed: %d\n", rc);
-		} else {
-			udelay(10);
-			msleep(1);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		return 0;
+	} else {
+		if (!node || !ctrl_pdata) {
+			pr_err("%s: Invalid arguments\n", __func__);
+			return -ENODEV;
 		}
+
+		pinfo = &ctrl_pdata->panel_data.panel_info;
+
+		pr_debug("%s:%d\n", __func__, __LINE__);
+		panel_name = of_get_property(node, "qcom,mdss-dsi-panel-name", NULL);
+		if (!panel_name)
+			pr_info("%s:%d, Panel name not specified\n",
+							__func__, __LINE__);
+		else
+			pr_info("%s: Panel Name = %s\n", __func__, panel_name);
+
+		rc = mdss_panel_parse_dt(node, ctrl_pdata);
+		if (of_machine_is_compatible("somc,seagull")) {
+			gMIPIDSInode = node;
+		}
+		if (rc) {
+			pr_err("%s:%d panel dt parse failed\n", __func__, __LINE__);
+			return rc;
+		}
+
+		if (!cmd_cfg_cont_splash)
+			pinfo->cont_splash_enabled = false;
+		if (of_machine_is_compatible("somc,seagull")) {
+			pinfo->cont_splash_enabled = display_on_in_boot;
+		}
+		pr_info("%s: Continuous splash %s", __func__,
+			pinfo->cont_splash_enabled ? "enabled" : "disabled");
+
+		if (of_machine_is_compatible("somc,flamingo")) {
+			rc =gpio_request(TRULY_LCM_BL_EN,"BL EN PIN");
+			   if (rc) {
+				pr_info("gpio15 request failed: %d\n", rc);
+			} else {
+				udelay(10);
+				msleep(1);
+			}
+		}
+
+		pinfo->dynamic_switch_pending = false;
+		pinfo->is_lpm_mode = false;
+
+		ctrl_pdata->on = mdss_dsi_panel_on;
+		ctrl_pdata->off = mdss_dsi_panel_off;
+		ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
+		ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
+
+		return 0;
 	}
-
-	pinfo->dynamic_switch_pending = false;
-	pinfo->is_lpm_mode = false;
-
-	ctrl_pdata->on = mdss_dsi_panel_on;
-	ctrl_pdata->off = mdss_dsi_panel_off;
-	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
-	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
-
-	return 0;
 }
+
 static int __init display_on_in_boot_setup(char *str)
 {
 	if (!str)
