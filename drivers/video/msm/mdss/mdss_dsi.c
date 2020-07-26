@@ -334,8 +334,11 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata)
 	mdss_dsi_phy_disable(ctrl_pdata);
 
 	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
-
-	ret = mdss_dsi_panel_power_on(pdata, 0);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		ret = ctrl_pdata->spec_pdata->panel_power_on(pdata, 0);
+	} else {
+		ret = mdss_dsi_panel_power_on(pdata, 0);
+	} 
 	if (ret) {
 		mutex_unlock(&ctrl_pdata->mutex);
 		pr_err("%s: Panel power off failed\n", __func__);
@@ -679,18 +682,36 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 	pinfo = &pdata->panel_info;
 	mipi = &pdata->panel_info.mipi;
-
-	ret = mdss_dsi_panel_power_on(pdata, 1);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		ret = ctrl_pdata->spec_pdata->panel_power_on(pdata, 1);
+	} else { 
+		ret = mdss_dsi_panel_power_on(pdata, 1);
+	}
 	if (ret) {
 		pr_err("%s:Panel power on failed. rc=%d\n", __func__, ret);
 		return ret;
 	}
-
-	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 1);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		if (!mipi->lp11_init) {
+			ret = mdss_dsi_panel_reset(pdata, 1);
+			if (ret) {
+				pr_err("%s: Panel reset failed. rc=%d\n",
+						__func__, ret);
+				return ret;
+			}
+		}
+		ret = mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 1);
+	} else {
+		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_BUS_CLKS, 1);
+	}
 	if (ret) {
 		pr_err("%s: failed to enable bus clocks. rc=%d\n", __func__,
 			ret);
-		ret = mdss_dsi_panel_power_on(pdata, 0);
+		if (of_machine_is_compatible("somc,tianchi")) {
+			ret = ctrl_pdata->spec_pdata->panel_power_on(pdata, 0);
+		} else {
+			ret = mdss_dsi_panel_power_on(pdata, 0);
+		}
 		if (ret) {
 			pr_err("%s: Panel reset failed. rc=%d\n",
 					__func__, ret);
@@ -1035,6 +1056,11 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		ctrl_pdata->ctrl_state |= CTRL_STATE_MDP_ACTIVE;
 		if (ctrl_pdata->on_cmds.link_state == DSI_HS_MODE)
 			rc = mdss_dsi_unblank(pdata);
+		if (of_machine_is_compatible("somc,tianchi")) {
+			if (ctrl_pdata->spec_pdata->disp_on_in_hs
+				&& ctrl_pdata->spec_pdata->disp_on)
+				rc = ctrl_pdata->spec_pdata->disp_on(pdata);
+		}
 		break;
 	case MDSS_EVENT_BLANK:
 		if (ctrl_pdata->off_cmds.link_state == DSI_HS_MODE)
@@ -1227,6 +1253,17 @@ static int __devinit mdss_dsi_ctrl_probe(struct platform_device *pdev)
 			rc = -ENOMEM;
 			goto error_no_mem;
 		}
+		if (of_machine_is_compatible("somc,tianchi")) {
+			ctrl_pdata->spec_pdata = devm_kzalloc(&pdev->dev,
+				sizeof(struct mdss_panel_specific_pdata),
+				GFP_KERNEL);
+			if (!ctrl_pdata->spec_pdata) {
+				pr_err("%s: FAILED: cannot alloc spec pdata\n",
+					__func__);
+				rc = -ENOMEM;
+				goto error_no_mem;
+			}
+		}
 		platform_set_drvdata(pdev, ctrl_pdata);
 	}
 
@@ -1306,6 +1343,9 @@ error_pan_node:
 error_vreg:
 	mdss_dsi_put_dt_vreg_data(&pdev->dev, &ctrl_pdata->power_data);
 error_no_mem:
+	if (of_machine_is_compatible("somc,tianchi")) {
+		devm_kfree(&pdev->dev, ctrl_pdata->spec_pdata);
+	}
 	devm_kfree(&pdev->dev, ctrl_pdata);
 
 	return rc;
@@ -1330,6 +1370,57 @@ static int __devexit mdss_dsi_ctrl_remove(struct platform_device *pdev)
 	msm_dss_iounmap(&ctrl_pdata->mmss_misc_io);
 	msm_dss_iounmap(&ctrl_pdata->phy_io);
 	msm_dss_iounmap(&ctrl_pdata->ctrl_io);
+	return 0;
+}
+
+int mdss_dsi_panel_power_detect(struct platform_device *pdev, int enable)
+{
+	int ret;
+	static struct regulator *vddio_vreg;
+
+	if (!vddio_vreg) {
+
+		vddio_vreg = devm_regulator_get(&pdev->dev, "vddio");
+		if (IS_ERR(vddio_vreg)) {
+			pr_err("could not get 8941_lvs3, rc = %ld\n",
+					PTR_ERR(vddio_vreg));
+			return -ENODEV;
+		}
+	}
+
+	if (enable) {
+		ret = regulator_set_optimum_mode(vddio_vreg, 100000);
+		if (ret < 0) {
+			pr_err("%s: vdd_vreg set regulator mode failed.\n",
+						       __func__);
+			return ret;
+		}
+
+		ret = regulator_enable(vddio_vreg);
+		if (ret) {
+			pr_err("%s: Failed to enable regulator.\n", __func__);
+			return ret;
+		}
+
+		msleep(50);
+		wmb();
+	} else {
+		ret = regulator_disable(vddio_vreg);
+		if (ret) {
+			pr_err("%s: Failed to disable regulator.\n", __func__);
+			return ret;
+		}
+
+		ret = regulator_set_optimum_mode(vddio_vreg, 100);
+		if (ret < 0) {
+			pr_err("%s: vdd_vreg set regulator mode failed.\n",
+						       __func__);
+			return ret;
+		}
+
+		usleep_range(9000, 10000);
+		devm_regulator_put(vddio_vreg);
+	}
 	return 0;
 }
 
@@ -1398,6 +1489,18 @@ int mdss_dsi_retrieve_ctrl_resources(struct platform_device *pdev, int mode,
 	return 0;
 }
 
+static bool display_on_in_boot;
+
+static int __init continous_splash_setup(char *str)
+{
+	if (!str)
+		return 0;
+	if (!strncmp(str, "on", 2))
+		display_on_in_boot = true;
+	return 0;
+}
+__setup("display_status=", continous_splash_setup);
+
 int dsi_panel_device_register(struct device_node *pan_node,
 				struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
@@ -1407,6 +1510,15 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	struct platform_device *ctrl_pdev = NULL;
 	const char *data;
 	struct mdss_panel_info *pinfo = &(ctrl_pdata->panel_data.panel_info);
+	struct mdss_panel_specific_pdata *spec_pdata = NULL;
+
+	if (of_machine_is_compatible("somc,tianchi")) {
+		spec_pdata = ctrl_pdata->spec_pdata;
+		if (!spec_pdata) {
+			pr_err("%s: Invalid input data\n", __func__);
+			return -EINVAL;
+		}
+	}
 
 	mipi  = &(pinfo->mipi);
 
@@ -1551,9 +1663,34 @@ int dsi_panel_device_register(struct device_node *pan_node,
 
 	ctrl_pdata->rst_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node,
 			 "qcom,platform-reset-gpio", 0);
-	if (!gpio_is_valid(ctrl_pdata->rst_gpio))
-		pr_err("%s:%d, reset gpio not specified\n",
-						__func__, __LINE__);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		if (!gpio_is_valid(ctrl_pdata->rst_gpio)) {
+			pr_err("%s:%d, reset gpio not specified\n",
+							__func__, __LINE__);
+		} else {
+			rc = gpio_request(ctrl_pdata->rst_gpio, "disp_rst_n");
+			if (rc) {
+				pr_err("request reset gpio failed, rc=%d\n",
+					rc);
+				if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+					gpio_free(ctrl_pdata->disp_en_gpio);
+				return -ENODEV;
+			}
+			if (!display_on_in_boot) {
+				rc = gpio_direction_output(ctrl_pdata->rst_gpio, 0);
+				if (rc) {
+					pr_err("failed to set direction output, %d\n",
+						rc);
+					gpio_free(ctrl_pdata->rst_gpio);
+					return -ENODEV;
+				}
+			}
+		}
+	} else {
+		if (!gpio_is_valid(ctrl_pdata->rst_gpio))
+			pr_err("%s:%d, reset gpio not specified\n",
+							__func__, __LINE__);
+	} 
 
 	if (pinfo->mode_gpio_state != MODE_GPIO_NOT_VALID) {
 
@@ -1585,6 +1722,16 @@ int dsi_panel_device_register(struct device_node *pan_node,
 		ctrl_pdata->check_status = mdss_dsi_reg_status_check;
 	else if (ctrl_pdata->status_mode == ESD_BTA)
 		ctrl_pdata->check_status = mdss_dsi_bta_status_check;
+		if (of_machine_is_compatible("somc,tianchi")) {
+			ctrl_pdata->panel_data.detect = spec_pdata->detect;
+			ctrl_pdata->panel_data.update_panel = spec_pdata->update_panel;
+			ctrl_pdata->panel_data.panel_pdev = ctrl_pdev;
+			ctrl_pdata->cabc_off_cmds = spec_pdata->cabc_off_cmds;
+			ctrl_pdata->spec_pdata->disp_on_in_hs = spec_pdata->disp_on_in_hs;
+			ctrl_pdata->spec_pdata->cabc_enabled = spec_pdata->cabc_enabled;
+			ctrl_pdata->on_cmds = spec_pdata->on_cmds;
+			ctrl_pdata->off_cmds = spec_pdata->off_cmds;
+		}
 
 	if (ctrl_pdata->status_mode == ESD_MAX) {
 		pr_err("%s: Using default BTA for ESD check\n", __func__);
@@ -1607,7 +1754,12 @@ int dsi_panel_device_register(struct device_node *pan_node,
 
 	if (pinfo->cont_splash_enabled) {
 		pinfo->panel_power_on = 1;
-		rc = mdss_dsi_panel_power_on(&(ctrl_pdata->panel_data), 1);
+		if (of_machine_is_compatible("somc,tianchi")) {
+			rc = ctrl_pdata->spec_pdata->panel_power_on(
+				&(ctrl_pdata->panel_data), 1);
+		} else {
+			rc = mdss_dsi_panel_power_on(&(ctrl_pdata->panel_data), 1);
+		}
 		if (rc) {
 			pr_err("%s: Panel power on failed\n", __func__);
 			return rc;

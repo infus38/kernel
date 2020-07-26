@@ -347,6 +347,9 @@ struct mdss_panel_info {
 	struct ion_handle *splash_ihdl;
 	u32 panel_power_on;
 
+	/* physical size in mm */
+	__u32 width;
+	__u32 height;
 	uint32_t panel_dead;
 	bool dynamic_switch_pending;
 	bool is_lpm_mode;
@@ -358,12 +361,15 @@ struct mdss_panel_info {
 	struct mipi_panel_info mipi;
 	struct lvds_panel_info lvds;
 	struct edp_panel_info edp;
+
+	const char *panel_id_name;
 };
 
 struct mdss_panel_data {
 	struct mdss_panel_info panel_info;
 	void (*set_backlight) (struct mdss_panel_data *pdata, u32 bl_level);
 	unsigned char *mmss_cc_base;
+	struct platform_device *panel_pdev;
 
 	/**
 	 * event_handler() - callback handler for MDP core events
@@ -378,6 +384,8 @@ struct mdss_panel_data {
 	 * and teardown.
 	 */
 	int (*event_handler) (struct mdss_panel_data *pdata, int e, void *arg);
+	int (*detect) (struct mdss_panel_data *pdata);
+	int (*update_panel) (struct mdss_panel_data *pdata);
 
 	struct mdss_panel_data *next;
 };
@@ -454,6 +462,9 @@ static inline int mdss_panel_get_htotal(struct mdss_panel_info *pinfo)
 int mdss_register_panel(struct platform_device *pdev,
 	struct mdss_panel_data *pdata);
 
+struct msm_fb_data_type;
+void mipi_dsi_panel_create_debugfs(struct msm_fb_data_type *mfd);
+void mipi_dsi_panel_remove_debugfs(struct msm_fb_data_type *mfd);
 /**
  * mdss_panel_intf_type: - checks if a given intf type is primary
  * @intf_val: panel interface type of the individual controller
