@@ -13,6 +13,7 @@
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
 #include <linux/module.h>
+#include <linux/debugfs.h> 
 #include "msm_sd.h"
 #include "msm_actuator.h"
 #include "msm_cci.h"
@@ -27,7 +28,7 @@ DEFINE_MSM_MUTEX(msm_actuator_mutex);
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 #endif
 
-
+extern uint16_t s5k5e2_version;
 static int32_t msm_actuator_power_up(struct msm_actuator_ctrl_t *a_ctrl);
 static int32_t msm_actuator_power_down(struct msm_actuator_ctrl_t *a_ctrl);
 
@@ -38,6 +39,161 @@ static struct i2c_driver msm_actuator_i2c_driver;
 static struct msm_actuator *actuators[] = {
 	&msm_vcm_actuator_table,
 	&msm_piezo_actuator_table,
+};
+static void vcm_move_to(struct msm_actuator_ctrl_t *a_ctrl, int dac_value)
+{
+  /*struct msm_camera_i2c_reg_setting reg_setting;
+  reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
+  reg_setting.data_type = a_ctrl->i2c_data_type;
+  reg_setting.size = a_ctrl->i2c_tbl_index;
+  
+  
+  a_ctrl->func_tbl->actuator_parse_i2c_params(a_ctrl,
+			value, 0, 0);
+  a_ctrl->i2c_client.i2c_func_tbl->
+			i2c_write_table_w_microdelay(
+			&a_ctrl->i2c_client, &reg_setting);*/
+	struct msm_actuator_reg_params_t *write_arr = a_ctrl->reg_tbl;
+	//uint32_t hw_dword = hw_params;
+	uint16_t i2c_byte1 = 0, i2c_byte2 = 0;
+	uint16_t value = 0;
+	uint32_t size = a_ctrl->reg_tbl_size, i = 0;
+
+	for (i = 0; i < size; i++) {
+		if (write_arr[i].reg_write_type == MSM_ACTUATOR_WRITE_DAC) {
+			value = (dac_value <<
+				write_arr[i].data_shift); /*|
+				((hw_dword & write_arr[i].hw_mask) >>
+				write_arr[i].hw_shift);*/
+
+			if (write_arr[i].reg_addr != 0xFFFF) {
+				i2c_byte1 = write_arr[i].reg_addr;
+				i2c_byte2 = value;
+				if (size != (i+1)) {
+					i2c_byte2 = value & 0xFF;
+					printk("%s: <vcm> moving to %d, byte1:0x%x, byte2:0x%x\n", __func__, dac_value, i2c_byte1, i2c_byte2);
+                    a_ctrl->i2c_client.i2c_func_tbl->i2c_write(&a_ctrl->i2c_client, i2c_byte1, i2c_byte2,a_ctrl->i2c_data_type);						
+					i++;
+					i2c_byte1 = write_arr[i].reg_addr;
+					i2c_byte2 = (value & 0xFF00) >> 8;
+				}
+			} else {
+				i2c_byte1 = (value & 0xFF00) >> 8;
+				i2c_byte2 = value & 0xFF;
+			}
+		} else {
+			i2c_byte1 = write_arr[i].reg_addr;
+			i2c_byte2 = 0;/*(hw_dword & write_arr[i].hw_mask) >>
+				write_arr[i].hw_shift;*/
+		    printk("%s: <vcm> landed here", __func__);
+		}
+		printk("%s: <vcm> moving to %d, i2c_byte1:0x%x, i2c_byte2:0x%x\n", __func__, dac_value, i2c_byte1, i2c_byte2);
+        a_ctrl->i2c_client.i2c_func_tbl->i2c_write(&a_ctrl->i2c_client, i2c_byte1, i2c_byte2,a_ctrl->i2c_data_type);		
+	}			
+}
+
+static int i2c_set_open(struct inode *inode, struct file *fp)
+{
+  fp->f_mode &= ~(FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
+  fp->private_data = inode->i_private;
+  return 0;
+}
+
+static ssize_t i2c_set_write(struct file *fp, const char __user *user_buffer, size_t count, loff_t *position)
+{
+  struct msm_actuator_ctrl_t *a_ctrl = fp->private_data;
+  char arg_buffer[20];
+  int value =0;
+  
+  if(copy_from_user(&arg_buffer, user_buffer, count))
+    return -EFAULT;
+	
+  sscanf(arg_buffer, "%d", &value);
+  vcm_move_to(a_ctrl,value);
+  
+  return count;
+}
+
+static const struct file_operations i2c_set_fops = {
+	.open  = i2c_set_open,
+	.write = i2c_set_write,
+};
+
+static int vcm_open(struct inode *inode, struct file *fp)
+{
+  fp->f_mode &= ~(FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE);
+  fp->private_data = inode->i_private;
+  return 0;
+}
+
+static ssize_t vcm_write(struct file *fp, const char __user *user_buffer, size_t count, loff_t *position)
+{
+	struct msm_actuator_ctrl_t *a_ctrl = fp->private_data;
+    	char arg_buffer[20];
+	char option[5];
+	int arg[3];
+	
+	memset(arg_buffer, 0, sizeof(arg_buffer));
+	memset(option, 0, sizeof(option));
+	memset(arg, 0, sizeof(arg));
+	
+    if(copy_from_user(&arg_buffer, user_buffer, count))
+	  return -EFAULT;
+	  
+    sscanf(arg_buffer, "%s %d %d %d", option, &arg[0], &arg[1], &arg[2]);
+	
+	if(strcmp(option, "-m")==0)
+	{	//-m [move] 200
+	  printk("%s: <vcm> option is -m\n", __func__);
+	  vcm_move_to(a_ctrl,arg[0]);
+	}
+	else if(strcmp(option, "-r")==0)
+	{   //-r [ring] 0 1023 10
+	  int i;
+	  printk("%s: <vcm> option is -r\n", __func__);
+	  for(i=arg[0]; i<=arg[1]; i+=arg[2])
+	  {
+	    printk("%s: i= %d ", __func__, i);
+	    vcm_move_to(a_ctrl, i);
+   	    msleep(100);
+      }
+	  if(i!=arg[1])
+	  {
+	 	printk("%s: i= %d ", __func__, arg[1]); 
+	  	vcm_move_to(a_ctrl, arg[1]);
+	  }
+	}
+	else if(strcmp(option, "-s")==0)
+	{	//-s [sweep] 40
+	  int i;
+	  printk("%s: <vcm> option is -s\n", __func__);
+	  vcm_move_to(a_ctrl, a_ctrl->step_position_table[0]);
+	  for(i=0; i <arg[0]; i++)
+	  {
+	    printk("%s: i= %d ", __func__, i);
+	    vcm_move_to(a_ctrl,a_ctrl->step_position_table[i]);
+		msleep(100);
+      }
+	  for(i=arg[0]-2; i >=0; i--)
+	  {
+	    printk("%s: i= %d ", __func__, i);
+  	    vcm_move_to(a_ctrl,a_ctrl->step_position_table[i]);
+		msleep(100);
+      }	  
+	}
+	else
+	{
+	  printk("%s: <vcm> use -m for move.  -r 0 1023 10 for ringing characterization. -s 40 for sweep 40 steps\n", __func__);
+	  return count;
+	}
+
+    return count;
+}
+
+static const struct file_operations vcm_fops = {
+    //.read = vcm_read,
+	.open  = vcm_open,
+	.write = vcm_write,
 };
 
 static int32_t msm_actuator_piezo_set_default_focus(
@@ -302,12 +458,15 @@ static int32_t msm_actuator_move_focus(
 	}
 	curr_lens_pos = a_ctrl->step_position_table[a_ctrl->curr_step_pos];
 	move_params->curr_lens_pos = curr_lens_pos;
-
-	if (copy_from_user(&ringing_params_kernel,
-		&(move_params->ringing_params[a_ctrl->curr_region_index]),
-		sizeof(struct damping_params_t))) {
-		pr_err("copy_from_user failed\n");
-		return -EFAULT;
+	if (of_machine_is_compatible("somc,flamingo")) {
+		return 0;
+	} else {
+		if (copy_from_user(&ringing_params_kernel,
+			&(move_params->ringing_params[a_ctrl->curr_region_index]),
+			sizeof(struct damping_params_t))) {
+			pr_err("copy_from_user failed\n");
+			return -EFAULT;
+		}
 	}
 
 
@@ -339,6 +498,16 @@ static int32_t msm_actuator_move_focus(
 		step_boundary =
 			a_ctrl->region_params[a_ctrl->curr_region_index].
 			step_bound[dir];
+	if (of_machine_is_compatible("somc,flamingo")) {
+		if (copy_from_user(&ringing_params_kernel,
+				 &(move_params->ringing_params[a_ctrl->curr_region_index]),
+				 sizeof(struct damping_params_t))) {
+				pr_err("copy_from_user failed\n");
+				  return -EFAULT;
+				 }      
+				  CDBG("curr_region_index %d, hw_params 0x%x \n", a_ctrl->curr_region_index, ringing_params_kernel.hw_params);
+	}
+
 		if ((dest_step_pos * sign_dir) <=
 			(step_boundary * sign_dir)) {
 
@@ -589,6 +758,7 @@ static int32_t msm_actuator_init(struct msm_actuator_ctrl_t *a_ctrl,
 	int32_t rc = -EFAULT;
 	uint16_t i = 0;
 	struct msm_camera_cci_client *cci_client = NULL;
+	struct dentry *debugdir;
 	CDBG("Enter\n");
 
 	for (i = 0; i < ARRAY_SIZE(actuators); i++) {
@@ -709,6 +879,11 @@ static int32_t msm_actuator_init(struct msm_actuator_ctrl_t *a_ctrl,
 
 	a_ctrl->curr_step_pos = 0;
 	a_ctrl->curr_region_index = 0;
+	if (of_machine_is_compatible("somc,flamingo")) {
+	    	debugdir = debugfs_create_dir("camera",NULL);    
+		(void) debugfs_create_file("vcm", 0644, debugdir, a_ctrl, &vcm_fops); //access through echo "##" > /sys/kernel/debug/vcm
+		(void) debugfs_create_file("i2c_set", 0644, debugdir, a_ctrl, &i2c_set_fops); //creation for shell script
+	}
 	CDBG("Exit\n");
 
 	return rc;
@@ -727,6 +902,11 @@ static int32_t msm_actuator_config(struct msm_actuator_ctrl_t *a_ctrl,
 	case CFG_GET_ACTUATOR_INFO:
 		cdata->is_af_supported = 1;
 		cdata->cfg.cam_name = a_ctrl->cam_name;
+		if (of_machine_is_compatible("somc,flamingo")) {
+			if(s5k5e2_version == 0x16)
+				cdata->cfg.cam_name = a_ctrl->cam_name = 6;
+			pr_info("msm_actuator_config: camera name = %d , id = %d\n",cdata->cfg.cam_name,a_ctrl->cam_name);
+		}
 		break;
 
 	case CFG_SET_ACTUATOR_INFO:

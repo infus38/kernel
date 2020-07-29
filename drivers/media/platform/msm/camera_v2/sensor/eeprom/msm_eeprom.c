@@ -319,9 +319,15 @@ static int read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
 		}
 		if (emap[j].poll.valid_size) {
 			e_ctrl->i2c_client.addr_type = emap[j].poll.addr_t;
-			rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_poll(
-				&(e_ctrl->i2c_client), emap[j].poll.addr,
-				emap[j].poll.data, emap[j].poll.data_t);
+			if (of_machine_is_compatible("somc,flamingo")) {
+				rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+					&(e_ctrl->i2c_client), emap[j].poll.addr,
+					emap[j].poll.data, emap[j].poll.data_t);
+			} else {
+				rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_poll(
+					&(e_ctrl->i2c_client), emap[j].poll.addr,
+					emap[j].poll.data, emap[j].poll.data_t);
+			}
 				msleep(emap[j].poll.delay);
 			if (rc < 0) {
 				pr_err("%s: poll failed\n", __func__);
