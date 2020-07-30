@@ -38,8 +38,6 @@ static struct msm_sensor_power_setting s5k5e2_power_setting[] = {
 		.delay = 0,
 	},
 /*[BSP][Camera][Kent][33434][01Begin]The power is used for 5908*/ 
-#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926SS) \
-		 ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926DS))
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VIO,
@@ -52,21 +50,17 @@ static struct msm_sensor_power_setting s5k5e2_power_setting[] = {
 		.config_val = GPIO_OUT_HIGH,
 		.delay = 0,
 	},
-#endif
 /*[BSP][Camera][Kent][33434][01End]The power is used for 5908*/ 
 	{	.seq_type = SENSOR_VREG,
 		.seq_val = CAM_VDIG,
 		.config_val = 0,
 		.delay = 0,
 	},
-#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226DS) \
-		 ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226SS))
 	{	.seq_type = SENSOR_VREG,
 		.seq_val = CAM_VAF,		//use CAM_VAF for new CAM_VDDIO in RITA
 		.config_val = 0,
 		.delay = 0,
 	},
-#endif	
 	{	.seq_type = SENSOR_VREG,  ///only USE for i2c pull high 	
 		.seq_val = CAM_VIO,
 		.config_val = 0,
@@ -255,22 +249,18 @@ static ssize_t s5k5e2_read_version_attr(struct device *dev,struct device_attribu
 //[all][Main][Camera][42153][03Begin] add driver attribute to read firmware version 
 
 //[all][Main][Camera][42153][01Begin] add driver attribute to read camera vendor
-#if 1
 static struct msm_camera_i2c_reg_conf s5k5e2_read_eeprom[] = {
 	{0x0A00 ,0x04},
 	{0x0A02 ,0x02},
 	{0x0A00 ,0x01},
 };
-#endif
+
 static ssize_t s5k5e2_read_vendor_attr(struct device *dev,struct device_attribute *attr, char *buf)
 {
 	struct msm_sensor_ctrl_t *s_ctrl;
 	int32_t power_flag = 0;
 	int32_t rc = 0;
 	uint16_t version = 0;
-	#if 0
-	uint16_t flag,i;
-    #endif
 
 
 	s_ctrl = &s5k5e2_s_ctrl;
@@ -282,57 +272,6 @@ static ssize_t s5k5e2_read_vendor_attr(struct device *dev,struct device_attribut
 	}
 
 
-#if 0
-	for(i=2;i<3;i++)
-	{
-	rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
-					s_ctrl->sensor_i2c_client,
-					0x0A00,
-					0x04, MSM_CAMERA_I2C_BYTE_DATA);
-	msleep(1);
-	rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
-						s_ctrl->sensor_i2c_client,
-						0x0A02,
-						i, MSM_CAMERA_I2C_BYTE_DATA);
-	msleep(1);
-	rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write(
-						s_ctrl->sensor_i2c_client,
-						0x0A00,
-						0x01, MSM_CAMERA_I2C_BYTE_DATA);
-	msleep(5);
-	if (rc < 0) {
-		pr_err("%s: %s: failed: write command to otp\n", __func__,
-			s_ctrl->sensordata->sensor_name);
-	}
-
-	rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
-				s_ctrl->sensor_i2c_client,
-				0x0A04,
-				&flag, MSM_CAMERA_I2C_BYTE_DATA);
-	pr_err("%s: %x: flag\n", __func__,		flag		);
-	if(flag ==0)
-		break;
-
-	rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
-					s_ctrl->sensor_i2c_client,
-					0x0A06,
-					&version, MSM_CAMERA_I2C_BYTE_DATA);
-	pr_err("%s: %x: version\n", __func__,		version		);
-
-	rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
-					s_ctrl->sensor_i2c_client,
-					0x0A36,
-					&flag, MSM_CAMERA_I2C_BYTE_DATA);
-	pr_err("%s: %x: flag\n", __func__,		flag		);
-	if(flag ==0)
-			break;
-	rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
-					s_ctrl->sensor_i2c_client,
-					0x0A38,
-					&version, MSM_CAMERA_I2C_BYTE_DATA);
-	pr_err("%s: %x: version\n", __func__,		version		);
-	}
-#else
 	rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_write_conf_tbl(
 							s_ctrl->sensor_i2c_client,
 							s5k5e2_read_eeprom,
@@ -343,7 +282,6 @@ static ssize_t s5k5e2_read_vendor_attr(struct device *dev,struct device_attribut
 					0x0A06,
 					&version, MSM_CAMERA_I2C_BYTE_DATA);
 	pr_err("%s: %x: version\n", __func__,		version		);
-#endif
 	if(power_flag == 1)
 	{
 		s_ctrl->func_tbl->sensor_power_down(s_ctrl);

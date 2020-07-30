@@ -42,24 +42,18 @@ static struct msm_sensor_power_setting ov7695_power_setting[] = {
 		.config_val = 0,
 		.delay = 1,
 	},
-#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226DS) \
-		 ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8226SS))
 	{	.seq_type = SENSOR_VREG,
 		.seq_val = CAM_VAF,		//use CAM_VAF for new CAM_VDDIO in RITA
 		.config_val = 0,
 		.delay = 0,
-	},
-#endif		
+	},		
 //[ALL][CAMEAR][Kent][33434][Begin] remove the the GPIO of VDDIO power controller in RITA PDP2
-#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926DS) \
-		 ||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_PDP1) && defined(CONFIG_BSP_HW_SKU_8926SS))
 	{
 		.seq_type = SENSOR_GPIO,
 		.seq_val = SENSOR_GPIO_VIO,
 		.config_val = GPIO_OUT_HIGH,
 		.delay = 0,
 	},
-#endif // end of project define for Arima E2
 //[ALL][CAMEAR][Kent][33434][End] remove the the GPIO of VDDIO power controller in RITA PDP2
 	{
 		.seq_type = SENSOR_VREG,  ///only USE for i2c pull high
@@ -86,9 +80,6 @@ static struct msm_sensor_power_setting ov7695_power_setting[] = {
 		.delay = 0,
 	},
 };
-//static struct msm_camera_i2c_reg_conf ov7695_720p_settings[] = {
-//
-//};
 
 static struct msm_camera_i2c_reg_conf ov7695_recommend_settings[] = {
 	{0x0103 ,0x01},
@@ -154,14 +145,7 @@ static struct msm_camera_i2c_reg_conf ov7695_recommend_settings[] = {
 
 	//@@ OV7695_ISP
 //[All][Main][DMS][34459] Modify mount angle issue S
-#if ((CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226SS_DP) && defined(CONFIG_BSP_HW_SKU_8226SS) \
-||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8226DS_DP) && defined(CONFIG_BSP_HW_SKU_8226DS) \
-||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926SS_DP) && defined(CONFIG_BSP_HW_SKU_8926SS) \
-||  (CONFIG_BSP_HW_V_CURRENT >= CONFIG_BSP_HW_V_8926DS_DP) && defined(CONFIG_BSP_HW_SKU_8926DS))
 	{0x0101 ,0x02},
-#else
-	{0x0101 ,0x01}, //mirror_on
-#endif
 //[All][Main][DMS][34459] Modify mount angle issue E
 	{0x5002 ,0x48}, //[7:6] Y source select// [3]LENC bias plus
 	{0x5910 ,0x00}, //Y formula
@@ -270,7 +254,6 @@ static struct msm_camera_i2c_reg_conf ov7695_recommend_settings[] = {
 
 	{0x3630 ,0x79},//69// ADC7
 	//[BSP][CAMERA][KENT][01Begin]camera fine tune register setting
-#if 1
     //;@@ 0 0 OVM7695 IQ fine tune in arima office
     //;;lenc
     {0x5000,0xff},//  ;Lens enable[1]
@@ -400,7 +383,6 @@ static struct msm_camera_i2c_reg_conf ov7695_recommend_settings[] = {
     {0x5208,0x07},//B Gain
     {0x5209,0x8e},
 
-    #endif
     	//[BSP][CAMERA][KENT][01End]camera fine tune register setting
 };
 static struct msm_camera_i2c_reg_conf ov7695_stop[] = {
@@ -599,9 +581,6 @@ static int32_t ov7695_platform_probe(struct platform_device *pdev)
 	match = of_match_device(ov7695_dt_match, &pdev->dev);
 	rc = msm_sensor_platform_probe(pdev, match->data);
 //[all][Main][Camera][42153][03Begin] add driver attribute to read sensor id for mount test
-//	pr_err("device addr= %x\n",(uint32_t)&pdev->dev);
-//	pr_err("driver addr =%x \n",(uint32_t)&ov7695_s_ctrl);
-//	pr_err("get driver addr =%x \n",(uint32_t)dev_get_drvdata(&pdev->dev));
 	ret = device_create_file(&(pdev->dev), &dev_attr_read_id);
 	if (0 != ret)
 		pr_err("%s:%d creating attribute failed \n", __func__,__LINE__);
@@ -758,11 +737,6 @@ int32_t ov7695_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			MSM_CAMERA_I2C_BYTE_DATA);
 		break;
 	case CFG_SET_RESOLUTION:
-//		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
-//			i2c_write_conf_tbl(
-//			s_ctrl->sensor_i2c_client, ov7695_720p_settings,
-//			ARRAY_SIZE(ov7695_720p_settings),
-//			MSM_CAMERA_I2C_WORD_DATA);
 		break;
 	case CFG_SET_STOP_STREAM:
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
@@ -788,9 +762,13 @@ int32_t ov7695_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 								
 		break;
 	case CFG_GET_SENSOR_INIT_PARAMS:
-		cdata->cfg.sensor_init_params =
-			*s_ctrl->sensordata->sensor_init_params;
-		CDBG("%s:%d init params mode %d pos %d mount %d\n", __func__,
+		cdata->cfg.sensor_init_params.modes_supported =
+			s_ctrl->sensordata->sensor_info->modes_supported;
+		cdata->cfg.sensor_init_params.position =
+			s_ctrl->sensordata->sensor_info->position;
+		cdata->cfg.sensor_init_params.sensor_mount_angle =
+			s_ctrl->sensordata->sensor_info->sensor_mount_angle;
+		pr_err("%s:%d init params mode %d pos %d mount %d\n", __func__,
 			__LINE__,
 			cdata->cfg.sensor_init_params.modes_supported,
 			cdata->cfg.sensor_init_params.position,
@@ -838,7 +816,6 @@ int32_t ov7695_sensor_config(struct msm_sensor_ctrl_t *s_ctrl,
 			rc = -EFAULT;
 			break;
 		}
-		s_ctrl->free_power_setting = true;
 		CDBG("%s sensor id %x\n", __func__,
 			sensor_slave_info.slave_addr);
 		CDBG("%s sensor addr type %d\n", __func__,
