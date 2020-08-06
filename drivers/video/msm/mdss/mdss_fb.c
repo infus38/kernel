@@ -53,6 +53,8 @@
 #include <mach/msm_memtypes.h>
 
 #include "mdss_fb.h"
+#include "mdss_mdp.h"
+#include "mdss_dsi.h"
 #include "mdss_mdp_splash_logo.h"
 #include <linux/gpio.h> 
 
@@ -231,14 +233,25 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 {
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
 	int bl_lvl;
+	int tmp_brightness_max;
 
 	if (value > mfd->panel_info->brightness_max)
 		value = mfd->panel_info->brightness_max;
 
 	/* This maps android backlight level 0 to 255 into
 	   driver backlight level 0 to bl_max with rounding */
-	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
-				mfd->panel_info->brightness_max);
+	if (of_machine_is_compatible("somc,tianchi")) {
+		tmp_brightness_max = mfd->panel_info->brightness_max;
+		if (tmp_brightness_max == 0) {
+			pr_err("%s:mfd->panel_info->brightness_max = 0\n", __func__);
+			tmp_brightness_max = 255;
+		}
+		MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
+					tmp_brightness_max);
+	} else {
+		MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
+					mfd->panel_info->brightness_max);
+	}
 
 	if (!bl_lvl && value)
 		bl_lvl = 1;
@@ -686,6 +699,37 @@ static int mdss_fb_probe(struct platform_device *pdev)
 	if (mfd->mdp.splash_init_fnc)
 		mfd->mdp.splash_init_fnc(mfd);
 
+	if (of_machine_is_compatible("somc,tianchi")) {
+		if ((mfd->panel_info->type == MIPI_VIDEO_PANEL) ||
+			(mfd->panel_info->type == MIPI_CMD_PANEL))
+			mipi_dsi_panel_create_debugfs(mfd);
+
+		if (mfd->index == 0) {
+			struct mdss_dsi_ctrl_pdata *ctrl_pdata;
+
+			ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
+				panel_data);
+			if (!ctrl_pdata) {
+				pr_err("%s: Invalid input data\n", __func__);
+				return -EINVAL;
+			}
+			if (ctrl_pdata->spec_pdata) {
+				if (ctrl_pdata->spec_pdata->panel_detect) {
+					mdss_fb_blank_sub(FB_BLANK_UNBLANK, mfd->fbi,
+						mfd->op_enable);
+					if (pdata->detect)
+						pdata->detect(pdata);
+					mdss_fb_blank_sub(FB_BLANK_POWERDOWN, mfd->fbi,
+						mfd->op_enable);
+					if (pdata->update_panel)
+						pdata->update_panel(pdata);
+				} else {
+					ctrl_pdata->spec_pdata->detected = true;
+				}
+			}
+		}
+	}
+
 	INIT_DELAYED_WORK(&mfd->idle_notify_work, __mdss_fb_idle_notify_work);
 
 	return rc;
@@ -726,6 +770,12 @@ static int mdss_fb_remove(struct platform_device *pdev)
 
 	if (mfd->key != MFD_KEY)
 		return -EINVAL;
+
+	if (of_machine_is_compatible("somc,tianchi")) {
+		if ((mfd->panel_info->type == MIPI_VIDEO_PANEL) ||
+			(mfd->panel_info->type == MIPI_CMD_PANEL))
+			mipi_dsi_panel_remove_debugfs(mfd);
+	}
 
 	if (mdss_fb_suspend_sub(mfd))
 		pr_err("msm_fb_remove: can't stop the device %d\n",
@@ -988,16 +1038,16 @@ void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 	u32 temp;
 	bool bl_notify = false;
 
-	if (mfd->unset_bl_level) {
+	if (of_machine_is_compatible("somc,tianchi")) {
 		mutex_lock(&mfd->bl_lock);
-		if (!mfd->bl_updated) {
+		if (mfd->unset_bl_level && !mfd->bl_updated) {
 			pdata = dev_get_platdata(&mfd->pdev->dev);
 			if ((pdata) && (pdata->set_backlight)) {
 				mfd->bl_level = mfd->unset_bl_level;
 				temp = mfd->bl_level;
 				if (mfd->mdp.ad_calc_bl)
 					(*mfd->mdp.ad_calc_bl)(mfd, temp, &temp,
-								&bl_notify);
+							&bl_notify);
 				if (bl_notify)
 					mdss_fb_bl_update_notify(mfd);
 				pdata->set_backlight(pdata, temp);
@@ -1006,6 +1056,26 @@ void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 			}
 		}
 		mutex_unlock(&mfd->bl_lock);
+	} else {
+		if (mfd->unset_bl_level) {
+			mutex_lock(&mfd->bl_lock);
+			if (!mfd->bl_updated) {
+				pdata = dev_get_platdata(&mfd->pdev->dev);
+				if ((pdata) && (pdata->set_backlight)) {
+					mfd->bl_level = mfd->unset_bl_level;
+					temp = mfd->bl_level;
+					if (mfd->mdp.ad_calc_bl)
+						(*mfd->mdp.ad_calc_bl)(mfd, temp, &temp,
+									&bl_notify);
+					if (bl_notify)
+						mdss_fb_bl_update_notify(mfd);
+					pdata->set_backlight(pdata, temp);
+					mfd->bl_level_scaled = mfd->unset_bl_level;
+					mfd->bl_updated = 1;
+				}
+			}
+			mutex_unlock(&mfd->bl_lock);
+		}
 	}
 }
 
@@ -1515,10 +1585,28 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 	var->yoffset = 0,	/* resolution */
 	var->grayscale = 0,	/* No graylevels */
 	var->nonstd = 0,	/* standard pixel format */
-	var->activate = FB_ACTIVATE_VBL,	/* activate it at vsync */
-	var->height = -1,	/* height of picture in mm */
-	var->width = -1,	/* width of picture in mm */
-	var->accel_flags = 0,	/* acceleration flags */
+	var->activate = FB_ACTIVATE_VBL;	/* activate it at vsync */
+	if (of_machine_is_compatible("somc,tianchi")) {
+		if (panel_info) {
+			if (panel_info->height)
+				var->height = panel_info->height;
+			else
+				var->height = -1;
+			if (panel_info->width)
+				var->width = panel_info->width;
+			else
+				var->width = -1;
+		} else {
+			var->height = -1;
+			var->width = -1;
+			pr_err("%s panel_info null\n", __func__);
+			return ret;
+		}
+	} else {
+		var->height = -1;	/* height of picture in mm */
+		var->width = -1;	/* width of picture in mm */
+	}
+	var->accel_flags = 0;	/* acceleration flags */
 	var->sync = 0,	/* see FB_SYNC_* */
 	var->rotate = 0,	/* angle we rotate counter clockwise */
 	mfd->op_enable = false;
@@ -2267,6 +2355,9 @@ static int __mdss_fb_perform_commit(struct msm_fb_data_type *mfd)
 		else
 			pr_warn("no kickoff function setup for fb%d\n",
 					mfd->index);
+		if (of_machine_is_compatible("somc,tianchi")) {
+			mdss_dsi_panel_fps_data_update(mfd);
+		}
 	} else {
 		ret = mdss_fb_pan_display_sub(&fb_backup->disp_commit.var,
 				&fb_backup->info);
