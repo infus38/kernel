@@ -76,11 +76,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 		}
 
 		if (!pdata->panel_info.mipi.lp11_init) {
-			if (of_machine_is_compatible("somc,tianchi")) {
-				ret = mdss_dsi_panel_reset_panel(pdata, 1);
-			} else {
-				ret = mdss_dsi_panel_reset(pdata, 1);
-			}
+			ret = mdss_dsi_panel_reset(pdata, 1);
 			if (ret) {
 				pr_err("%s: Panel reset failed. rc=%d\n",
 						__func__, ret);
@@ -92,11 +88,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata, int enable)
 			}
 		}
 	} else {
-		if (of_machine_is_compatible("somc,tianchi")) {
-			ret = mdss_dsi_panel_reset_panel(pdata, 0);
-		} else {
-			ret = mdss_dsi_panel_reset(pdata, 0);
-		}
+		ret = mdss_dsi_panel_reset(pdata, 0);
 		if (ret) {
 			pr_err("%s: Panel reset failed. rc=%d\n",
 					__func__, ret);
