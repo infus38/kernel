@@ -98,11 +98,7 @@ static int dsi_panel_handler(struct mdss_panel_data *pdata, int enable)
 		if (!pdata->panel_info.dynamic_switch_pending) {
 			if (pdata->panel_info.type == MIPI_CMD_PANEL)
 				dsi_ctrl_gpio_request(ctrl_pdata);
-			if (of_machine_is_compatible("somc,tianchi")) {
-				mdss_dsi_panel_reset_panel(pdata, 1);
-			} else {
 				mdss_dsi_panel_reset(pdata, 1);
-			}
 		}
 		pdata->panel_info.panel_power_on = 1;
 		if (!pdata->panel_info.dynamic_switch_pending) {
@@ -138,11 +134,7 @@ static int dsi_panel_handler(struct mdss_panel_data *pdata, int enable)
 		if (!pdata->panel_info.dynamic_switch_pending) {
 			if (pdata->panel_info.type == MIPI_CMD_PANEL)
 				dsi_ctrl_gpio_free(ctrl_pdata);
-			if (of_machine_is_compatible("somc,tianchi")) {
-				mdss_dsi_panel_reset_panel(pdata, 0);
-			} else {
 				mdss_dsi_panel_reset(pdata, 0);
-			}
 		}
 	}
 	return rc;

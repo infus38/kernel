@@ -41,9 +41,6 @@ int lcm_first_boot=1;
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
 
-static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
-		struct dsi_panel_cmds *pcmds, char *cmd_key, char *link_key);
-
 struct device_node *gMIPIDSInode;
 static bool display_on_in_boot = false;
 static int DisplayGpioInit=0;
@@ -147,7 +144,7 @@ void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 	}
 }
 
-static void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
+void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 {
 	int ret;
 	u32 duty;
@@ -233,7 +230,7 @@ u32 mdss_dsi_panel_cmd_read(struct mdss_dsi_ctrl_pdata *ctrl, char cmd0,
 	return 0;
 }
 
-static void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
+void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 			struct dsi_panel_cmds *pcmds)
 {
 	struct dcs_cmd_req cmdreq;
@@ -259,7 +256,7 @@ static struct dsi_cmd_desc backlight_cmd = {
 	led_pwm1
 };
 
-static void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
+void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level)
 {
 	struct dcs_cmd_req cmdreq;
 
@@ -368,7 +365,17 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 	pinfo = &(ctrl_pdata->panel_data.panel_info);
 
 	if (enable) {
-		if (of_machine_is_compatible("somc,flamingo")) {
+		if (of_machine_is_compatible("somc,tianchi")) {
+			if (gpio_is_valid(ctrl_pdata->disp_en_gpio))
+				gpio_set_value(ctrl_pdata->disp_en_gpio, 1);
+
+			for (i = 0; i < pdata->panel_info.rst_seq_len; ++i) {
+				gpio_set_value((ctrl_pdata->rst_gpio),
+					pdata->panel_info.rst_seq[i]);
+				if (pdata->panel_info.rst_seq[++i])
+					usleep(pinfo->rst_seq[i] * 1000);
+			}
+		} else if (of_machine_is_compatible("somc,flamingo")) {
 			gpio_direction_output(SYSTEM_RESET_PIN_TS, 0);
 			gpio_set_value((ctrl_pdata->rst_gpio), 1);
 			msleep(10);
@@ -446,8 +453,6 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				DisplayGpioReady=2;
 				printk("[DISPLAY]%s: Request gpio for release fist deinit\n", __func__ );
 			}
-		}
-		if (of_machine_is_compatible("somc,seagull")) {
 			if(DisplayGpioInit) {
 				if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 					gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
@@ -467,6 +472,14 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 				gpio_free(ctrl_pdata->rst_gpio);
 				}
 			DisplayGpioInit = 0;
+		} else if (of_machine_is_compatible("somc,tianchi")) {
+			usleep_range(6000, 7000);
+			gpio_set_value(ctrl_pdata->rst_gpio, 0);
+			usleep_range(11000, 12000);
+			if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
+				gpio_set_value(ctrl_pdata->disp_en_gpio, 0);
+				msleep(21);
+			}
 		} else {
 			if (gpio_is_valid(ctrl_pdata->disp_en_gpio)) {
 				gpio_set_value((ctrl_pdata->disp_en_gpio), 0);
@@ -493,7 +506,7 @@ static struct dsi_cmd_desc partial_update_enable_cmd[] = {
 	{{DTYPE_DCS_LWRITE, 1, 0, 0, 1, sizeof(paset)}, paset},
 };
 
-static int mdss_dsi_panel_partial_update(struct mdss_panel_data *pdata)
+int mdss_dsi_panel_partial_update(struct mdss_panel_data *pdata)
 {
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl = NULL;
@@ -591,7 +604,7 @@ static void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
 	return;
 }
 
-static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
+void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 							u32 bl_level)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
@@ -729,7 +742,7 @@ static int mdss_dsi_panel_off(struct mdss_panel_data *pdata)
 	return 0;
 }
 
-static void mdss_dsi_parse_lane_swap(struct device_node *np, char *dlane_swap)
+void mdss_dsi_parse_lane_swap(struct device_node *np, char *dlane_swap)
 {
 	const char *data;
 
@@ -753,7 +766,7 @@ static void mdss_dsi_parse_lane_swap(struct device_node *np, char *dlane_swap)
 	}
 }
 
-static void mdss_dsi_parse_trigger(struct device_node *np, char *trigger,
+void mdss_dsi_parse_trigger(struct device_node *np, char *trigger,
 		char *trigger_key)
 {
 	const char *data;
@@ -773,7 +786,7 @@ static void mdss_dsi_parse_trigger(struct device_node *np, char *trigger,
 }
 
 
-static int mdss_dsi_parse_dcs_cmds(struct device_node *np,
+int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 		struct dsi_panel_cmds *pcmds, char *cmd_key, char *link_key)
 {
 	const char *data;
@@ -929,7 +942,7 @@ int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 }
 
 
-static int mdss_dsi_parse_fbc_params(struct device_node *np,
+int mdss_dsi_parse_fbc_params(struct device_node *np,
 				struct mdss_panel_info *panel_info)
 {
 	int rc, fbc_enabled = 0;
@@ -1021,7 +1034,7 @@ static void mdss_panel_parse_te_params(struct device_node *np,
 }
 
 
-static int mdss_dsi_parse_reset_seq(struct device_node *np,
+int mdss_dsi_parse_reset_seq(struct device_node *np,
 		u32 rst_seq[MDSS_DSI_RST_SEQ_LEN], u32 *rst_len,
 		const char *name)
 {

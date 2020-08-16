@@ -404,7 +404,6 @@ void mdss_dsi_clk_deinit(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 int mdss_dsi_enable_bus_clocks(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 void mdss_dsi_disable_bus_clocks(struct mdss_dsi_ctrl_pdata *ctrl_pdata);
 int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable);
-int mdss_dsi_panel_reset_panel(struct mdss_panel_data *pdata, int enable);
 void mdss_dsi_phy_disable(struct mdss_dsi_ctrl_pdata *ctrl);
 void mdss_dsi_phy_init(struct mdss_panel_data *pdata);
 void mdss_dsi_phy_sw_reset(unsigned char *ctrl_base);
@@ -430,8 +429,35 @@ int mdss_dsi_panel_init_alt(struct device_node *node,
 		struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		bool cmd_cfg_cont_splash);
 
+void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+
+int mdss_dsi_parse_fbc_params(struct device_node *np,
+				struct mdss_panel_info *panel_info);
+
+void mdss_dsi_parse_trigger(struct device_node *np, char *trigger,
+		char *trigger_key);
+
+void mdss_dsi_parse_lane_swap(struct device_node *np, char *dlane_swap);
+
+int mdss_dsi_parse_reset_seq(struct device_node *np,
+		u32 rst_seq[MDSS_DSI_RST_SEQ_LEN], u32 *rst_len,
+		const char *name);
+
+int mdss_dsi_panel_partial_update(struct mdss_panel_data *pdata);
+
+void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
+			struct dsi_panel_cmds *pcmds);
+
 int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 				char *dst_format);
+
+void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level);
+
+void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
+							u32 bl_level);
+
+int mdss_dsi_parse_dcs_cmds(struct device_node *np,
+		struct dsi_panel_cmds *pcmds, char *cmd_key, char *link_key);
 
 int mdss_dsi_register_recovery_handler(struct mdss_dsi_ctrl_pdata *ctrl,
 		struct mdss_panel_recovery *recovery);

@@ -693,7 +693,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	}
 	if (of_machine_is_compatible("somc,tianchi")) {
 		if (!mipi->lp11_init) {
-			ret = mdss_dsi_panel_reset_panel(pdata, 1);
+			ret = mdss_dsi_panel_reset(pdata, 1);
 			if (ret) {
 				pr_err("%s: Panel reset failed. rc=%d\n",
 						__func__, ret);
@@ -737,11 +737,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	 * data lanes for LP11 init
 	 */
 	if (mipi->lp11_init) {
-		if (of_machine_is_compatible("somc,tianchi")) {
-			mdss_dsi_panel_reset_panel(pdata, 1);
-		} else {
-			mdss_dsi_panel_reset(pdata, 1);
-		}
+		mdss_dsi_panel_reset(pdata, 1);
 	}
 
 	if (mipi->init_delay)

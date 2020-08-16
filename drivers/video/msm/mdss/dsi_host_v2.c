@@ -1312,11 +1312,7 @@ static int msm_dsi_cont_on(struct mdss_panel_data *pdata)
 		return ret;
 	}
 	pinfo->panel_power_on = 1;
-	if (of_machine_is_compatible("somc,tianchi")) {
-		ret = mdss_dsi_panel_reset_panel(pdata, 1);
-	} else {
-		ret = mdss_dsi_panel_reset(pdata, 1);
-	}
+	ret = mdss_dsi_panel_reset(pdata, 1);
 
 	if (ret) {
 		pr_err("%s: Panel reset failed\n", __func__);
