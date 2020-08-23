@@ -574,7 +574,7 @@ static int aat1430_backlight_control(struct mdss_dsi_ctrl_pdata *ctrl, int bl_le
    return 0;
 }
 
-static void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
+void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
 							int mode)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
@@ -785,7 +785,6 @@ void mdss_dsi_parse_trigger(struct device_node *np, char *trigger,
 	}
 }
 
-
 int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 		struct dsi_panel_cmds *pcmds, char *cmd_key, char *link_key)
 {
@@ -795,10 +794,19 @@ int mdss_dsi_parse_dcs_cmds(struct device_node *np,
 	struct dsi_ctrl_hdr *dchdr;
 	int i, cnt;
 
+	pcmds->cmd_cnt = 0;
+
 	data = of_get_property(np, cmd_key, &blen);
 	if (!data) {
 		pr_err("%s: failed, key=%s\n", __func__, cmd_key);
 		return -ENOMEM;
+	}
+	if (of_machine_is_compatible("somc,tianchi")) {
+		if (pcmds->buf != NULL)
+			kfree(pcmds->buf);
+
+		if (pcmds->cmds != NULL)
+			kfree(pcmds->cmds);
 	}
 
 	buf = kzalloc(sizeof(char) * blen, GFP_KERNEL);
@@ -873,7 +881,6 @@ exit_free:
 	kfree(buf);
 	return -ENOMEM;
 }
-
 
 int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 				char *dst_format)
@@ -1577,62 +1584,58 @@ int mdss_dsi_panel_init(struct device_node *node,
 	int rc = 0;
 	static const char *panel_name;
 	struct mdss_panel_info *pinfo;
-
-	if (of_machine_is_compatible("somc,tianchi")) {
-		return 0;
-	} else {
-		if (!node || !ctrl_pdata) {
-			pr_err("%s: Invalid arguments\n", __func__);
-			return -ENODEV;
-		}
-
-		pinfo = &ctrl_pdata->panel_data.panel_info;
-
-		pr_debug("%s:%d\n", __func__, __LINE__);
-		panel_name = of_get_property(node, "qcom,mdss-dsi-panel-name", NULL);
-		if (!panel_name)
-			pr_info("%s:%d, Panel name not specified\n",
-							__func__, __LINE__);
-		else
-			pr_info("%s: Panel Name = %s\n", __func__, panel_name);
-
-		rc = mdss_panel_parse_dt(node, ctrl_pdata);
-		if (of_machine_is_compatible("somc,seagull")) {
-			gMIPIDSInode = node;
-		}
-		if (rc) {
-			pr_err("%s:%d panel dt parse failed\n", __func__, __LINE__);
-			return rc;
-		}
-
-		if (!cmd_cfg_cont_splash)
-			pinfo->cont_splash_enabled = false;
-		if (of_machine_is_compatible("somc,seagull")) {
-			pinfo->cont_splash_enabled = display_on_in_boot;
-		}
-		pr_info("%s: Continuous splash %s", __func__,
-			pinfo->cont_splash_enabled ? "enabled" : "disabled");
-
-		if (of_machine_is_compatible("somc,flamingo")) {
-			rc =gpio_request(TRULY_LCM_BL_EN,"BL EN PIN");
-			   if (rc) {
-				pr_info("gpio15 request failed: %d\n", rc);
-			} else {
-				udelay(10);
-				msleep(1);
-			}
-		}
-
-		pinfo->dynamic_switch_pending = false;
-		pinfo->is_lpm_mode = false;
-
-		ctrl_pdata->on = mdss_dsi_panel_on;
-		ctrl_pdata->off = mdss_dsi_panel_off;
-		ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
-		ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
-
-		return 0;
+		
+	if (!node || !ctrl_pdata) {
+		pr_err("%s: Invalid arguments\n", __func__);
+		return -ENODEV;
 	}
+
+	pinfo = &ctrl_pdata->panel_data.panel_info;
+
+	pr_debug("%s:%d\n", __func__, __LINE__);
+	panel_name = of_get_property(node, "qcom,mdss-dsi-panel-name", NULL);
+	if (!panel_name)
+		pr_info("%s:%d, Panel name not specified\n",
+						__func__, __LINE__);
+	else
+		pr_info("%s: Panel Name = %s\n", __func__, panel_name);
+
+	rc = mdss_panel_parse_dt(node, ctrl_pdata);
+	if (of_machine_is_compatible("somc,seagull")) {
+		gMIPIDSInode = node;
+	}
+	if (rc) {
+		pr_err("%s:%d panel dt parse failed\n", __func__, __LINE__);
+		return rc;
+	}
+
+	if (!cmd_cfg_cont_splash)
+		pinfo->cont_splash_enabled = false;
+	if (of_machine_is_compatible("somc,seagull")) {
+		pinfo->cont_splash_enabled = display_on_in_boot;
+	}
+	pr_info("%s: Continuous splash %s", __func__,
+		pinfo->cont_splash_enabled ? "enabled" : "disabled");
+
+	if (of_machine_is_compatible("somc,flamingo")) {
+		rc =gpio_request(TRULY_LCM_BL_EN,"BL EN PIN");
+			if (rc) {
+			pr_info("gpio15 request failed: %d\n", rc);
+		} else {
+			udelay(10);
+			msleep(1);
+		}
+	}
+
+	pinfo->dynamic_switch_pending = false;
+	pinfo->is_lpm_mode = false;
+
+	ctrl_pdata->on = mdss_dsi_panel_on;
+	ctrl_pdata->off = mdss_dsi_panel_off;
+	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
+	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
+
+	return 0;
 }
 
 static int __init display_on_in_boot_setup(char *str)

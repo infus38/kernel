@@ -920,9 +920,11 @@ static int mdss_panel_parse_dt(struct device_node *np,
 		data = of_get_property(next,
 			"qcom,mdss-dsi-pixel-packing", NULL);
 		if (data && !strcmp(data, "loose"))
-			tmp = 1;
+			pinfo->mipi.pixel_packing = 1;
+		else
+			pinfo->mipi.pixel_packing = 0;
 		rc = mdss_panel_get_dst_fmt(pinfo->bpp,
-			pinfo->mipi.mode, tmp,
+			pinfo->mipi.mode, pinfo->mipi.pixel_packing,
 			&(pinfo->mipi.dst_format));
 		if (rc) {
 			pr_debug("%s: problem dst format. Set Default\n",
@@ -1255,6 +1257,7 @@ int mdss_dsi_panel_init_alt(struct device_node *node,
 	bool cmd_cfg_cont_splash)
 {
 	int rc = 0;
+	struct mdss_panel_info *pinfo;
 	char *path_name = "mdss_dsi_panel_driver";
 	struct device_node *dsi_ctrl_np = NULL;
 	struct platform_device *ctrl_pdev = NULL;
@@ -1401,10 +1404,16 @@ int mdss_dsi_panel_init_alt(struct device_node *node,
 	spec_pdata->reset = mdss_dsi_panel_reset;
 	spec_pdata->disp_on = mdss_dsi_panel_disp_on;
 	spec_pdata->update_fps = mdss_dsi_panel_fps_data_update;
+	
+	pinfo->dynamic_switch_pending = false;
+	pinfo->is_lpm_mode = false;
 
 	ctrl_pdata->on = mdss_dsi_panel_on;
 	ctrl_pdata->off = mdss_dsi_panel_off;
 	ctrl_pdata->panel_data.set_backlight = mdss_dsi_panel_bl_ctrl;
+	ctrl_pdata->switch_mode = mdss_dsi_panel_switch_mode;
+
+	
 
 	mdss_dsi_panel_fps_data_init(&fpsd);
 

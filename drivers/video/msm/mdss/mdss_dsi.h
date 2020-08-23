@@ -448,6 +448,9 @@ int mdss_dsi_panel_partial_update(struct mdss_panel_data *pdata);
 void mdss_dsi_panel_cmds_send(struct mdss_dsi_ctrl_pdata *ctrl,
 			struct dsi_panel_cmds *pcmds);
 
+void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
+							int mode);
+
 int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 				char *dst_format);
 
