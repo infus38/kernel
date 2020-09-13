@@ -429,7 +429,6 @@ int mdss_dsi_panel_init_alt(struct device_node *node,
 		struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 		bool cmd_cfg_cont_splash);
 
-void mdss_dsi_panel_bklt_dcs(struct mdss_dsi_ctrl_pdata *ctrl, int level);
 
 int mdss_dsi_parse_fbc_params(struct device_node *np,
 				struct mdss_panel_info *panel_info);
@@ -454,7 +453,6 @@ void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
 int mdss_panel_get_dst_fmt(u32 bpp, char mipi_mode, u32 pixel_packing,
 				char *dst_format);
 
-void mdss_dsi_panel_bklt_pwm(struct mdss_dsi_ctrl_pdata *ctrl, int level);
 
 void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 							u32 bl_level);
