@@ -574,5 +574,5 @@ CONFIG_INET_ESP=y
 CONFIG_SONY_SSM=y
 # [All][Main][power][DMS][34038][Raymond Lin] Add SONY Feature 17920 Stamina mode patch END
 #//<2014/04/18-36561-EricLin, [All][Main][S1][] Add RIC function.
-CONFIG_SECURITY_SONY_RIC=y
+# CONFIG_SECURITY_SONY_RIC is not set
 #//>2014/04/18-36561-EricLin
