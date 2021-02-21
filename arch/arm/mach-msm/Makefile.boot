@@ -107,12 +107,14 @@ endif
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v1-qrd-dvt.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-720p-cdp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-1080p-cdp.dtb
+	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-flamingo.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-720p-mtp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-1080p-mtp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-evt.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8226-v2-qrd-dvt.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-720p-cdp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-1080p-cdp.dtb
+	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-flamingo.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-720p-mtp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-1080p-mtp.dtb
 	dtb-$(CONFIG_ARCH_MSM8226)	+= msm8926-qrd.dtb
